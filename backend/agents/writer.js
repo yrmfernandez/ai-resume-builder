@@ -8,6 +8,7 @@ const MODEL = "openai/gpt-oss-120b"; // strongest free model — best for qualit
  */
 export async function write(extracted, feedback = "") {
   return await callGroq({
+    agent: "writer",
     model: MODEL,
     system: WRITE_SYSTEM,
     user: buildWriteUser(extracted, feedback),

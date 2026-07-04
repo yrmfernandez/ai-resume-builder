@@ -8,6 +8,7 @@ const MODEL = "openai/gpt-oss-20b"; // fast, good for structured extraction
  */
 export async function extract(jobDescription, userDetails) {
   const raw = await callGroq({
+    agent: "extractor",
     model: MODEL,
     system: EXTRACT_SYSTEM,
     user: buildExtractUser(jobDescription, userDetails),

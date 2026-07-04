@@ -10,6 +10,7 @@ const MODEL = "llama-3.3-70b-versatile";
  */
 export async function judge(draft, extracted) {
   const raw = await callGroq({
+    agent: "judge",
     model: MODEL,
     system: JUDGE_SYSTEM,
     user: buildJudgeUser(draft, extracted),
