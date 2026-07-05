@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HireLift — three agents, one ATS-ready resume</title>
+  <meta name="description" content="Upload or paste your details and a job description. AI agents extract, write, and judge until your resume is ATS-ready — then suggest roles to target." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;900&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+  <header class="site-header">
+    <div class="wordmark">Hire<mark>Lift</mark></div>
+    <div class="header-actions">
+      <button class="theme-toggle" id="themeToggle" type="button" aria-label="Toggle dark mode" title="Toggle theme">
+        <span class="theme-toggle-icon" aria-hidden="true">◐</span>
+        <span class="theme-toggle-text" id="themeToggleText">Dark</span>
+      </button>
+      <a class="header-link" href="https://github.com/yrmfernandez/ai-resume-builder" target="_blank" rel="noopener">GitHub ↗</a>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <h1>Lift your resume past the bots <span class="hero-sub">and into human hands.</span></h1>
+      <p class="hero-copy">Paste a job description and your details — or upload the resume you already have. An <strong>extractor</strong> pulls what matters, a <strong>writer</strong> drafts an ATS-friendly resume, a <strong>judge</strong> rejects it until it's right, and a <strong>coach</strong> tells you which roles to chase next.</p>
+    </section>
+
+    <!-- Save / resume-later + upload bar -->
+    <section class="quickbar" aria-label="Save, restore, and upload">
+      <div class="quickbar-group">
+        <button class="btn-ghost" id="saveBtn" type="button">Save progress</button>
+        <button class="btn-ghost" id="restoreBtn" type="button">Restore</button>
+        <button class="btn-ghost btn-danger" id="clearSavedBtn" type="button" hidden>Clear saved</button>
+        <span class="save-status" id="saveStatus" role="status"></span>
+      </div>
+      <div class="quickbar-group">
+        <label class="upload-label btn-ghost" for="resumeUpload">
+          Upload existing resume
+          <input type="file" id="resumeUpload" accept=".pdf,.docx,.txt,application/pdf,text/plain" hidden />
+        </label>
+        <span class="upload-status" id="uploadStatus" role="status"></span>
+      </div>
+    </section>
+
+    <section class="workspace" aria-label="Resume inputs">
+      <div class="step-tabs" aria-label="Resume builder steps">
+        <button class="step-tab is-active" type="button" data-step="job">Job Description</button>
+        <button class="step-tab" type="button" data-step="about">Personal &amp; Education</button>
+        <button class="step-tab" type="button" data-step="experience">Experience</button>
+        <button class="step-tab" type="button" data-step="skills">Skills</button>
+        <button class="step-tab" type="button" data-step="projects">Projects</button>
+      </div>
+
+      <div class="step-card">
+        <!-- Job description -->
+        <section class="step-panel is-active" data-panel="job">
+          <label for="jobDescription">Job description</label>
+          <p class="step-help">Paste the full job posting so the agents can match your resume to the role. It also powers the smart suggestions on the Skills, Experience, and Projects tabs.</p>
+          <textarea id="jobDescription" rows="12" placeholder="Paste the full job posting here - requirements, responsibilities, everything."></textarea>
+          <span class="char-count" id="jdCount">0 / 15,000</span>
+        </section>
+
+        <!-- Personal + Education (merged tab, separate fields) -->
+        <section class="step-panel" data-panel="about">
+          <label>Personal information</label>
+          <p class="step-help">Each detail has its own field for a cleaner, more accurate resume.</p>
+
+          <div class="field-grid">
+            <div class="field">
+              <label class="field-label" for="firstName">First name</label>
+              <input type="text" id="firstName" placeholder="Juan" />
+            </div>
+            <div class="field">
+              <label class="field-label" for="lastName">Last name</label>
+              <input type="text" id="lastName" placeholder="Dela Cruz" />
+            </div>
+            <div class="field">
+              <label class="field-label" for="email">Email</label>
+              <input type="email" id="email" placeholder="juan.delacruz@email.com" />
+            </div>
+            <div class="field">
+              <label class="field-label" for="phone">Phone</label>
+              <input type="tel" id="phone" placeholder="+63 912 345 6789" />
+            </div>
+            <div class="field">
+              <label class="field-label" for="location">Location</label>
+              <input type="text" id="location" placeholder="Davao City, Philippines" />
+            </div>
+            <div class="field">
+              <label class="field-label" for="linkedin">LinkedIn</label>
+              <input type="text" id="linkedin" placeholder="linkedin.com/in/juandc" />
+            </div>
+            <div class="field">
+              <label class="field-label" for="github">GitHub</label>
+              <input type="text" id="github" placeholder="github.com/juandc" />
+            </div>
+            <div class="field">
+              <label class="field-label" for="portfolio">Portfolio / website</label>
+              <input type="text" id="portfolio" placeholder="juandc.dev" />
+            </div>
+          </div>
+
+          <div class="subsection">
+            <label class="field-label" for="education">Education</label>
+            <p class="step-help">Degree, school, dates, honors, relevant coursework.</p>
+            <textarea id="education" rows="6" placeholder="BS Computer Science major in Data Science&#10;University of Mindanao, 2022-2026&#10;GPA: 3.7"></textarea>
+          </div>
+        </section>
+
+        <!-- Experience -->
+        <section class="step-panel" data-panel="experience">
+          <label for="workExperience">Work experience</label>
+          <p class="step-help">Add internships, jobs, freelance work, responsibilities, and measurable wins.</p>
+          <textarea id="workExperience" rows="10" placeholder="Job title, company, dates, responsibilities, achievements, numbers/results..."></textarea>
+          <div class="suggest-zone" data-suggest="experience"></div>
+        </section>
+
+        <!-- Skills -->
+        <section class="step-panel" data-panel="skills">
+          <label for="skills">Skills</label>
+          <p class="step-help">List tools, languages, technical skills, and soft skills that are true for you.</p>
+          <textarea id="skills" rows="8" placeholder="Python, SQL, JavaScript, Tableau, communication, teamwork..."></textarea>
+          <div class="suggest-zone" data-suggest="skills"></div>
+        </section>
+
+        <!-- Projects -->
+        <section class="step-panel" data-panel="projects">
+          <label for="projects">Projects / achievements</label>
+          <p class="step-help">Add projects, certifications, awards, leadership, and achievements. No projects yet? The suggestions below can spark ideas relevant to the role.</p>
+          <textarea id="projects" rows="8" placeholder="Projects, certifications, awards, leadership, measurable achievements..."></textarea>
+          <span class="char-count" id="detailsCount">0 / 15,000</span>
+          <div class="suggest-zone" data-suggest="projects"></div>
+        </section>
+      </div>
+
+      <div class="actions step-actions">
+        <button id="prevStepBtn" class="btn-ghost" type="button">Back</button>
+        <button id="nextStepBtn" class="btn-primary" type="button">Next</button>
+        <button id="generateBtn" class="btn-primary" type="button" hidden>Generate resume</button>
+        <button id="sampleBtn" class="btn-ghost" type="button">Fill with sample data</button>
+      </div>
+
+      <p class="privacy-note">
+        Privacy note: Your job description and resume details are sent to the AI provider to generate your resume. Saved progress is stored only in this browser (localStorage) and never leaves your device unless you generate a resume.
+      </p>
+
+      <p class="form-error" id="formError" role="alert" hidden></p>
+    </section>
+
+    <!-- Signature element: the live pipeline tracker -->
+    <section class="pipeline" id="pipeline" hidden aria-label="Agent pipeline progress" aria-live="polite">
+      <div class="pipeline-track">
+        <div class="agent" id="agent-extract">
+          <span class="agent-dot"></span>
+          <span class="agent-name">Extractor</span>
+          <span class="agent-model">gpt-oss-20b</span>
+        </div>
+        <span class="track-arrow">→</span>
+        <div class="agent" id="agent-write">
+          <span class="agent-dot"></span>
+          <span class="agent-name">Writer</span>
+          <span class="agent-model">gpt-oss-120b</span>
+        </div>
+        <span class="track-arrow">→</span>
+        <div class="agent" id="agent-judge">
+          <span class="agent-dot"></span>
+          <span class="agent-name">Judge</span>
+          <span class="agent-model">llama-3.3-70b</span>
+        </div>
+        <span class="track-arrow">→</span>
+        <div class="agent" id="agent-coach">
+          <span class="agent-dot"></span>
+          <span class="agent-name">Coach</span>
+          <span class="agent-model">gpt-oss-120b</span>
+        </div>
+        <span class="track-arrow">→</span>
+        <div class="agent" id="agent-roles">
+          <span class="agent-dot"></span>
+          <span class="agent-name">Roles</span>
+          <span class="agent-model">gpt-oss-120b</span>
+        </div>
+        <span class="loop-badge" id="loopBadge" hidden>rewrite loop ×<span id="loopCount">1</span></span>
+      </div>
+      <pre class="run-log" id="runLog" aria-label="Run log"></pre>
+    </section>
+
+    <section class="result" id="result" hidden aria-label="Generated resume">
+      <div class="result-header">
+        <div class="verdict">
+          <span class="verdict-badge" id="verdictBadge"></span>
+          <span class="verdict-meta" id="verdictMeta"></span>
+        </div>
+      </div>
+
+      <div class="keywords" id="keywordsPanel">
+        <span class="keywords-label" id="keywordsLabel"></span>
+        <div class="chips" id="keywordChips"></div>
+      </div>
+
+      <div class="resume-toolbar">
+        <span class="resume-toolbar-label">Resume preview</span>
+
+        <div class="result-actions">
+          <div class="download-menu">
+            <button class="btn-ghost" id="downloadMenuBtn" type="button" aria-expanded="false">
+              Download v
+            </button>
+
+            <div class="download-options" id="downloadMenu" hidden>
+              <button type="button" id="downloadPdfBtn">Download as PDF</button>
+              <button type="button" id="downloadDocxBtn">Download as Word (.docx)</button>
+              <button type="button" id="downloadMdBtn">Download as Markdown (.md)</button>
+            </div>
+          </div>
+
+          <button class="btn-ghost" id="copyBtn" type="button">Copy Resume</button>
+          <button class="btn-ghost" id="printBtn" type="button">Print</button>
+        </div>
+      </div>
+
+      <div class="resume-preview-wrap">
+        <button class="edit-preview-btn" id="editPreviewBtn" type="button" aria-label="Edit resume preview" title="Edit resume">
+          &#9998;
+        </button>
+
+        <article class="resume-paper" id="resumePaper"></article>
+      </div>
+    </section>
+
+    <!-- Roles to target -->
+    <section class="roles" id="roles" hidden aria-label="Roles to target">
+      <div class="roles-head">
+        <h2>Roles To Target</h2>
+        <p>Job titles worth applying to, matched to your background. Use the search terms on LinkedIn, Indeed, or your job board of choice.</p>
+      </div>
+      <p class="roles-advice" id="rolesAdvice"></p>
+      <div class="roles-grid" id="rolesGrid"></div>
+    </section>
+
+    <!-- Coach: tailored "how to get hired" prep plan -->
+    <section class="coaching" id="coaching" hidden aria-label="How to get hired">
+      <div class="coaching-head">
+        <h2>Before You Apply</h2>
+        <p>A practical checklist based on the job post and your generated resume.</p>
+        <button class="btn-ghost" id="copyPlanBtn" type="button">Copy plan</button>
+      </div>
+      <div class="coaching-grid" id="coachingGrid"></div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    Built with a multi-agent pipeline on <a href="https://groq.com" target="_blank" rel="noopener">Groq</a> · free tier, no cost to run
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>

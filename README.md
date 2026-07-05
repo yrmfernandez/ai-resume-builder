@@ -49,13 +49,12 @@ job description + user details
 
 ## Setup
 
-1. Clone the repo and install dependencies:
+1. Clone the repo and install dependencies (run from the repo root, where `package.json` lives):
    ```bash
-   cd backend
    npm install
    ```
 2. Get a free Groq API key at [console.groq.com](https://console.groq.com) (no credit card required).
-3. Copy `.env.example` to `.env` (from inside `backend/`) and add your key:
+3. Copy `.env.example` to `.env` and add your key:
    ```bash
    cp .env.example .env
    # then edit .env and set GROQ_API_KEY
@@ -68,50 +67,60 @@ job description + user details
 
 ## Deploying to Vercel
 
-The backend is set up to deploy as a single Vercel Function, with the frontend served as static assets from `backend/public/`.
+The repo uses Vercel's native layout, so deployment is **zero-config** — no Root Directory to set, no build command to configure:
 
-1. **Push this repo to GitHub** (if it isn't already) and import it in [Vercel](https://vercel.com/new).
-2. **Set the Root Directory to `backend`** in the Vercel project's Import/Settings screen. This matters because our repo is a monorepo (`backend/` + its nested `public/`) — pointing Vercel's root at `backend/` lets it find `server.js`, `package.json`, and `public/` exactly where it expects them, with zero extra build config.
-3. **Add environment variables** in Project Settings → Environment Variables (do **not** commit a real `.env` file):
+- `api/index.js` is the Express app. Vercel auto-detects any file in `api/` as a Serverless Function.
+- `public/` holds the frontend, served directly from Vercel's CDN.
+- `lib/` holds the pipeline, agents, and prompts (imported by the function).
+- `vercel.json` rewrites `/api/*` and `/health` to the function; every other path falls through to the static frontend.
+
+Steps:
+
+1. **Push this repo to GitHub** and import it in [Vercel](https://vercel.com/new). Leave Root Directory at the repo root (the default).
+2. **Add environment variables** in Project Settings → Environment Variables (do **not** commit a real `.env` file):
    - `GROQ_API_KEY` — your Groq key
    - `MOCK_MODE` — `false` for real AI calls, or `true` to demo without burning API calls
-4. Deploy. Vercel auto-detects the Express app from `server.js` (it exports the app; see notes below on function timeout).
+3. Deploy. That's it — Vercel detects the function and static assets automatically.
 
 **Things that matter for this project specifically, since it isn't a typical CRUD app:**
 
-- **Function timeout:** a full pipeline run (Extractor → Writer/Judge loop → Coach → Roles) makes several sequential Groq calls and can take a while, especially on retries. If you see `504 FUNCTION_INVOCATION_TIMEOUT`, raise the limit in the dashboard under **Settings → Functions → Function Max Duration** (Hobby supports up to 60s; Fluid Compute and Pro allow more). We initially tried setting this via a `functions` block in `vercel.json`, but Vercel's zero-config Express detection expects that block to target files under an `api/` directory, not a top-level `server.js` — so the dashboard setting is the reliable path here.
-- **Upload size:** Vercel hard-caps request bodies at 4.5 MB for serverless functions. The resume-upload limit is set to 4 MB in `server.js` to stay safely under that — don't raise it back to the old 5 MB unless you move file uploads off Vercel Functions (e.g. direct-to-storage uploads).
+- **Function timeout:** a full pipeline run (Extractor → Writer/Judge loop → Coach → Roles) makes several sequential Groq calls and can take a while, especially on retries. If you see `504 FUNCTION_INVOCATION_TIMEOUT`, raise the limit in the dashboard under **Settings → Functions → Function Max Duration** (Hobby supports up to 60s; Fluid Compute and Pro allow more).
+- **Upload size:** Vercel hard-caps request bodies at 4.5 MB for serverless functions. The resume-upload limit is set to 4 MB in `api/index.js` to stay safely under that — don't raise it back to the old 5 MB unless you move file uploads off Vercel Functions (e.g. direct-to-storage uploads).
 - **Cold starts:** the first request after inactivity will be slower (Node process + dependency init). This is normal for serverless and not something to "fix."
 - **Save/restore is per-browser:** since it uses `localStorage`, it works identically in production — nothing server-side to configure for that feature.
 
 ## Project structure
 
 ```
-backend/
-├── server.js            # Express entrypoint (serves API + frontend, exports app for Vercel)
-├── pipeline.js          # the 3-agent loop + keyword coverage
-├── groqClient.js        # shared Groq API wrapper (+ mock mode)
-├── agents/
-│   ├── extractor.js
-│   ├── writer.js
-│   ├── judge.js
-│   ├── coach.js
-│   ├── roles.js         # role/title recommendations
-│   ├── suggester.js     # per-section suggestions
-│   └── resumeParser.js  # parse uploaded resumes
-├── prompts/
-│   ├── extractPrompt.js
-│   ├── writePrompt.js
-│   ├── judgePrompt.js
-│   ├── coachPrompt.js
-│   ├── rolesPrompt.js
-│   ├── suggestPrompt.js
-│   └── parseResumePrompt.js
-├── .env.example
-└── public/              # the web app — served as static assets on Vercel
-    ├── index.html
-    ├── styles.css
-    └── app.js           # streaming client + live pipeline UI
+.
+├── api/
+│   └── index.js         # Express app + all routes; exported for Vercel, app.listen for local
+├── lib/
+│   ├── pipeline.js      # the agent loop + keyword coverage
+│   ├── groqClient.js    # shared Groq API wrapper (+ mock mode)
+│   ├── agents/
+│   │   ├── extractor.js
+│   │   ├── writer.js
+│   │   ├── judge.js
+│   │   ├── coach.js
+│   │   ├── roles.js         # role/title recommendations
+│   │   ├── suggester.js     # per-section suggestions
+│   │   └── resumeParser.js  # parse uploaded resumes
+│   └── prompts/
+│       ├── extractPrompt.js
+│       ├── writePrompt.js
+│       ├── judgePrompt.js
+│       ├── coachPrompt.js
+│       ├── rolesPrompt.js
+│       ├── suggestPrompt.js
+│       └── parseResumePrompt.js
+├── public/              # the web app — served as static assets on Vercel
+│   ├── index.html
+│   ├── styles.css
+│   └── app.js           # streaming client + live pipeline UI
+├── vercel.json          # routes /api/* and /health to the function
+├── package.json
+└── .env.example
 ```
 
 ## API
