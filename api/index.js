@@ -284,29 +284,41 @@ app.post("/api/suggest", async (req, res) => {
 });
 
 // Extract text from an uploaded resume file (PDF, DOCX, or TXT).
+// Collapse the whitespace mess that pdf-parse and docx extraction often
+// produce (runs of blank lines, trailing spaces, non-breaking spaces),
+// while preserving real line breaks that separate sections and bullets.
+function normalizeResumeText(raw) {
+  return raw
+    .replace(/\r\n?/g, "\n")        // normalize line endings
+    .replace(/\u00a0/g, " ")        // non-breaking spaces -> normal spaces
+    .replace(/[ \t]+/g, " ")        // collapse runs of spaces/tabs
+    .replace(/ *\n */g, "\n")       // trim spaces around newlines
+    .replace(/\n{3,}/g, "\n\n")     // cap consecutive blank lines
+    .trim();
+}
+
 async function extractResumeText(file) {
   const { mimetype, originalname, buffer } = file;
   const name = (originalname || "").toLowerCase();
 
+  let text;
   if (mimetype === "application/pdf" || name.endsWith(".pdf")) {
     const pdfParse = require("pdf-parse");
     const data = await pdfParse(buffer);
-    return data.text;
-  }
-
-  if (
+    text = data.text;
+  } else if (
     mimetype === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
     name.endsWith(".docx")
   ) {
     const { value } = await mammoth.extractRawText({ buffer });
-    return value;
+    text = value;
+  } else if (mimetype === "text/plain" || name.endsWith(".txt")) {
+    text = buffer.toString("utf-8");
+  } else {
+    throw new Error("Unsupported file type. Upload a PDF, DOCX, or TXT resume.");
   }
 
-  if (mimetype === "text/plain" || name.endsWith(".txt")) {
-    return buffer.toString("utf-8");
-  }
-
-  throw new Error("Unsupported file type. Upload a PDF, DOCX, or TXT resume.");
+  return normalizeResumeText(text || "");
 }
 
 // Upload an existing resume -> extract text -> parse into structured fields.
@@ -333,7 +345,20 @@ app.post("/api/parse-resume", (req, res, next) => {
       });
     }
 
-    const parsed = await parseResume(text.slice(0, MAX_INPUT_CHARS));
+    // 20b has generous free-tier TPM, so we can send most of a resume.
+    // 12000 chars (~3000 tokens) covers virtually all single-page and most
+    // two-page resumes without truncating later sections (skills/projects
+    // often sit at the bottom).
+    const resumeText = text.slice(0, 12000);
+
+    // Debug logging: lets you see whether a failed extraction is caused by a
+    // bad file read (garbled/empty text) vs. a bad model parse. Check your
+    // server console after an upload.
+    console.log("[/api/parse-resume] extracted text length:", text.length);
+    console.log("[/api/parse-resume] text preview:\n", resumeText.slice(0, 500));
+
+    const parsed = await parseResume(resumeText);
+    console.log("[/api/parse-resume] parsed result:", JSON.stringify(parsed).slice(0, 400));
     res.json(parsed);
   } catch (err) {
     console.error("[/api/parse-resume] error:", err);

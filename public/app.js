@@ -285,19 +285,35 @@ els.resumeUpload.addEventListener("change", async () => {
 
 function applyParsedResume(data) {
   const p = data.personal || {};
-  const setIf = (el, v) => { if (v && !el.value.trim()) el.value = v; };
-  setIf(els.firstName, p.firstName);
-  setIf(els.lastName, p.lastName);
-  setIf(els.email, p.email);
-  setIf(els.phone, p.phone);
-  setIf(els.location, p.location);
-  setIf(els.linkedin, p.linkedin);
-  setIf(els.github, p.github);
-  setIf(els.portfolio, p.portfolio);
-  setIf(els.education, data.education);
-  setIf(els.workExperience, data.experience);
-  setIf(els.skills, data.skills);
-  setIf(els.projects, data.projects);
+
+  // Overwrite a field whenever the parser returned a value for it. (The old
+  // behavior only filled empty fields, so a re-upload or a corrected parse
+  // could never replace stale/wrong values.)
+  const setVal = (el, v) => { if (v != null && String(v).trim() !== "") el.value = String(v).trim(); };
+
+  // Name fallback: if the parser put the whole name in firstName and left
+  // lastName empty (a common failure), split on the last space so a middle
+  // name stays with the surname.
+  let first = (p.firstName || "").trim();
+  let last = (p.lastName || "").trim();
+  if (first && !last && first.includes(" ")) {
+    const parts = first.split(/\s+/);
+    last = parts.slice(1).join(" ");
+    first = parts[0];
+  }
+
+  setVal(els.firstName, first);
+  setVal(els.lastName, last);
+  setVal(els.email, p.email);
+  setVal(els.phone, p.phone);
+  setVal(els.location, p.location);
+  setVal(els.linkedin, p.linkedin);
+  setVal(els.github, p.github);
+  setVal(els.portfolio, p.portfolio);
+  setVal(els.education, data.education);
+  setVal(els.workExperience, data.experience);
+  setVal(els.skills, data.skills);
+  setVal(els.projects, data.projects);
   updateDetailsCount();
   markUnsaved();
 }
