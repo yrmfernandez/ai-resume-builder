@@ -4,7 +4,20 @@ import dotenv from "dotenv";
 import path from "path";
 import { fileURLToPath } from "url";
 import { generateResume } from "./pipeline.js";
+import { suggest } from "./agents/suggester.js";
+import { parseResume } from "./agents/resumeParser.js";
+import multer from "multer";
+import mammoth from "mammoth";
+import { createRequire } from "module";
 import PDFDocument from "pdfkit";
+
+// pdf-parse is CommonJS; load it via createRequire so it works under ESM.
+const require = createRequire(import.meta.url);
+
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5 MB cap
+});
 import {
   AlignmentType,
   Document,
@@ -238,6 +251,80 @@ app.post("/api/export/docx", async (req, res) => {
   );
   res.setHeader("Content-Disposition", 'attachment; filename="resume.docx"');
   res.send(buffer);
+});
+
+// Section suggestions: given the job description and which section the user is
+// filling out, return reminder-style suggestions of things they might have.
+app.post("/api/suggest", async (req, res) => {
+  const { jobDescription, section, existing } = req.body || {};
+  const validSections = ["skills", "experience", "projects"];
+
+  if (!jobDescription || !section) {
+    return res.status(400).json({ error: "'jobDescription' and 'section' are required." });
+  }
+  if (!validSections.includes(section)) {
+    return res.status(400).json({ error: `'section' must be one of: ${validSections.join(", ")}.` });
+  }
+  if (jobDescription.length > MAX_INPUT_CHARS) {
+    return res.status(400).json({ error: `Job description must be under ${MAX_INPUT_CHARS} characters.` });
+  }
+
+  try {
+    const result = await suggest(jobDescription, section, existing || "");
+    res.json(result);
+  } catch (err) {
+    console.error("[/api/suggest] error:", err);
+    res.status(500).json({ error: "Could not generate suggestions.", detail: err.message });
+  }
+});
+
+// Extract text from an uploaded resume file (PDF, DOCX, or TXT).
+async function extractResumeText(file) {
+  const { mimetype, originalname, buffer } = file;
+  const name = (originalname || "").toLowerCase();
+
+  if (mimetype === "application/pdf" || name.endsWith(".pdf")) {
+    const pdfParse = require("pdf-parse");
+    const data = await pdfParse(buffer);
+    return data.text;
+  }
+
+  if (
+    mimetype === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
+    name.endsWith(".docx")
+  ) {
+    const { value } = await mammoth.extractRawText({ buffer });
+    return value;
+  }
+
+  if (mimetype === "text/plain" || name.endsWith(".txt")) {
+    return buffer.toString("utf-8");
+  }
+
+  throw new Error("Unsupported file type. Upload a PDF, DOCX, or TXT resume.");
+}
+
+// Upload an existing resume -> extract text -> parse into structured fields.
+app.post("/api/parse-resume", upload.single("resume"), async (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ error: "No file uploaded. Attach a resume file named 'resume'." });
+  }
+
+  try {
+    const text = (await extractResumeText(req.file)).trim();
+    if (!text || text.length < 30) {
+      return res.status(422).json({
+        error: "Could not read enough text from that file. If it's a scanned image PDF, try a text-based PDF or paste your details manually.",
+      });
+    }
+
+    const parsed = await parseResume(text.slice(0, MAX_INPUT_CHARS));
+    res.json(parsed);
+  } catch (err) {
+    console.error("[/api/parse-resume] error:", err);
+    const status = err.message?.includes("Unsupported file type") ? 400 : 500;
+    res.status(status).json({ error: err.message || "Could not parse the uploaded resume." });
+  }
 });
 
 app.listen(PORT, () => {

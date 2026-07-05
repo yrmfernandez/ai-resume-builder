@@ -1,8 +1,8 @@
 /* ---------------------------------------------------------------------------
-   ResumeForge — design tokens
+   HireLift — design tokens
    Paper (the resume) meets terminal (the agents).
 --------------------------------------------------------------------------- */
-:root {
+:root, :root[data-theme="light"] {
   --paper: #f6f7f4;        /* cool paper background */
   --surface: #ffffff;      /* cards / the resume sheet */
   --ink: #16181d;          /* near-black ink */
@@ -13,13 +13,31 @@
   --fail: #c4442a;         /* judge rejects */
   --terminal: #16181d;     /* run log panel */
   --terminal-text: #d7dbcf;
+  --field-bg: #ffffff;
 
   --font-display: "Archivo", system-ui, sans-serif;
   --font-body: system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, monospace;
 }
 
+/* Dark theme — keeps the yellow highlight, darkens paper + ink. */
+:root[data-theme="dark"] {
+  --paper: #14161a;
+  --surface: #1d2026;
+  --ink: #eceee8;
+  --ink-soft: #9aa0ac;
+  --line: #333842;
+  --highlight: #ffe45c;
+  --pass: #4bc79f;
+  --fail: #f0937b;
+  --terminal: #0c0d10;
+  --terminal-text: #d7dbcf;
+  --field-bg: #23262d;
+}
+
 * { box-sizing: border-box; margin: 0; }
+
+html { color-scheme: light dark; }
 
 body {
   background: var(--paper);
@@ -27,6 +45,7 @@ body {
   font-family: var(--font-body);
   line-height: 1.55;
   -webkit-font-smoothing: antialiased;
+  transition: background 0.2s ease, color 0.2s ease;
 }
 
 main {
@@ -57,6 +76,12 @@ main {
   padding: 0 0.15em;
 }
 
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
 .header-link {
   font-family: var(--font-mono);
   font-size: 0.8rem;
@@ -64,6 +89,22 @@ main {
   text-decoration: none;
 }
 .header-link:hover { color: var(--ink); }
+
+.theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 6px 12px;
+  cursor: pointer;
+}
+.theme-toggle:hover { border-color: var(--ink); }
+.theme-toggle-icon { font-size: 0.9rem; }
 
 /* --- hero ---------------------------------------------------------------- */
 .hero { padding: 48px 0 40px; max-width: 720px; }
@@ -85,6 +126,48 @@ main {
   max-width: 56ch;
 }
 .hero-copy strong { color: var(--ink); }
+
+/* --- quickbar: save / restore / upload ----------------------------------- */
+.quickbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin: 8px 0 20px;
+  padding: 14px 16px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.quickbar-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.btn-danger {
+  color: var(--fail);
+  border-color: var(--fail);
+}
+.btn-danger:hover { background: var(--fail); color: #fff; }
+
+.save-status, .upload-status {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--ink-soft);
+}
+.save-status.ok, .upload-status.ok { color: var(--pass); }
+.save-status.err, .upload-status.err { color: var(--fail); }
+.save-status.warn, .upload-status.warn { color: var(--ink-soft); }
+
+.upload-label {
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+}
 
 /* --- workspace / inputs --------------------------------------------------- */
 .workspace {
@@ -158,17 +241,65 @@ textarea {
   padding: 14px;
   border: 1px solid var(--line);
   border-radius: 6px;
-  background: var(--surface);
+  background: var(--field-bg);
   color: var(--ink);
   resize: vertical;
-  min-height: 260px;
+  min-height: 160px;
 }
 
+/* Job-description textarea stays tall. */
+#jobDescription { min-height: 260px; }
+
 textarea:focus-visible,
+input:focus-visible,
 button:focus-visible,
 a:focus-visible {
   outline: 2px solid var(--ink);
   outline-offset: 2px;
+}
+
+/* separate personal-info fields */
+.field-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 14px 18px;
+  margin-top: 4px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.field-label {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--ink-soft);
+}
+
+input[type="text"],
+input[type="email"],
+input[type="tel"] {
+  width: 100%;
+  font-family: var(--font-body);
+  font-size: 0.95rem;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--field-bg);
+  color: var(--ink);
+}
+
+.subsection {
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .char-count {
@@ -656,6 +787,170 @@ a:focus-visible {
   margin-top: 3px;
 }
 
+/* --- smart suggestions ---------------------------------------------------- */
+.suggest-zone {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px dashed var(--line);
+}
+
+.suggest-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.suggest-btn {
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.suggest-status {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--ink-soft);
+}
+.suggest-status.err { color: var(--fail); }
+
+.suggest-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.suggest-item {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.suggest-chip {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  padding: 5px 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--ink);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.suggest-chip::before { content: "+ "; color: var(--ink-soft); }
+.suggest-chip:hover { border-color: var(--ink); background: var(--highlight); }
+.suggest-chip.added {
+  background: var(--pass);
+  border-color: var(--pass);
+  color: #fff;
+  cursor: default;
+}
+.suggest-chip.added::before { content: "✓ "; color: #fff; }
+
+.suggest-hint {
+  font-size: 0.82rem;
+  color: var(--ink-soft);
+}
+
+/* --- roles to target ------------------------------------------------------ */
+.roles { margin-top: 44px; }
+
+.roles-head { padding-bottom: 8px; }
+
+.roles-head h2 {
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: 1.45rem;
+  letter-spacing: -0.02em;
+}
+
+.roles-head p {
+  color: var(--ink-soft);
+  font-size: 0.95rem;
+  max-width: 62ch;
+  margin-top: 4px;
+}
+
+.roles-advice {
+  font-size: 0.95rem;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--highlight);
+  border-radius: 6px;
+  padding: 12px 16px;
+  margin: 14px 0 20px;
+}
+
+.roles-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+
+.role-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--line);
+  border-radius: 8px;
+  padding: 16px 18px;
+}
+.role-card.strong { border-left-color: var(--pass); }
+.role-card.good { border-left-color: var(--highlight); }
+.role-card.stretch { border-left-color: var(--fail); }
+
+.role-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.role-title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1rem;
+}
+
+.fit-tag {
+  font-family: var(--font-mono);
+  font-size: 0.64rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
+.fit-tag.strong { border-color: var(--pass); color: var(--pass); }
+.fit-tag.good { border-color: var(--highlight); color: var(--ink); background: var(--highlight); }
+.fit-tag.stretch { border-color: var(--fail); color: var(--fail); }
+
+.role-why {
+  color: var(--ink-soft);
+  font-size: 0.9rem;
+  margin: 8px 0 10px;
+}
+
+.role-kws {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.role-kw {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  color: var(--ink-soft);
+}
+
 /* --- footer ----------------------------------------------------------------- */
 .site-footer {
   max-width: 960px;
@@ -671,9 +966,12 @@ a:focus-visible {
 /* --- responsive --------------------------------------------------------------- */
 @media (max-width: 720px) {
   .input-grid { grid-template-columns: 1fr; }
+  .field-grid { grid-template-columns: 1fr; }
   .coaching-grid { grid-template-columns: 1fr; }
+  .roles-grid { grid-template-columns: 1fr; }
   .resume-paper { padding: 28px 22px; }
   .track-arrow { display: none; }
+  .quickbar { flex-direction: column; align-items: stretch; }
 }
 
 /* --- print: only the resume sheet, as a clean document ------------------------ */

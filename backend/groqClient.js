@@ -126,6 +126,51 @@ Python, SQL, pandas, machine learning, data visualization
     return JSON.stringify({ approved: true, score: 88, feedback: "" });
   }
 
+  if (agent === "suggester") {
+    return JSON.stringify({
+      section: "skills",
+      suggestions: [
+        { text: "Python", hint: "Core requirement in the job post — list it if you've used it in any course or project." },
+        { text: "SQL", hint: "The role involves querying data; even coursework counts." },
+        { text: "pandas", hint: "Standard for data wrangling in Python — mention if you've cleaned datasets." },
+        { text: "Data visualization", hint: "They want you to communicate findings; Matplotlib/Tableau experience fits here." },
+        { text: "Git / version control", hint: "Almost always expected — include if you've used GitHub for any project." },
+        { text: "Communication", hint: "A soft skill the post emphasizes; think of presentations you've given." },
+      ],
+    });
+  }
+
+  if (agent === "roles") {
+    return JSON.stringify({
+      roles: [
+        { title: "Junior Data Analyst", fit: "strong", why: "Your Python, SQL, and dashboard work map directly to entry-level analytics.", searchKeywords: ["junior data analyst", "entry level data analyst", "data analyst graduate"] },
+        { title: "Data Science Intern / Associate", fit: "strong", why: "Your internship and ML project experience fit associate-level data science.", searchKeywords: ["data science associate", "junior data scientist", "data science intern"] },
+        { title: "Business Intelligence Analyst", fit: "good", why: "Your Tableau and SQL skills translate well to BI reporting roles.", searchKeywords: ["BI analyst", "business intelligence analyst entry level"] },
+        { title: "Machine Learning Engineer", fit: "stretch", why: "A reach role — your TensorFlow project is a start, but most postings want more production experience.", searchKeywords: ["junior ML engineer", "machine learning engineer entry level"] },
+      ],
+      generalAdvice: "As a fresh graduate, lead with your projects and quantified internship results, and apply broadly to junior/analyst titles while treating ML engineer roles as stretch goals.",
+    });
+  }
+
+  if (agent === "resumeParser") {
+    return JSON.stringify({
+      personal: {
+        firstName: "Sample",
+        lastName: "Candidate",
+        email: "sample@email.com",
+        phone: "+63 900 000 0000",
+        location: "Davao City, Philippines",
+        linkedin: "linkedin.com/in/sample",
+        github: "github.com/sample",
+        portfolio: "",
+      },
+      education: "B.S. Computer Science (Data Science)\nState University, 2022 – 2026\nGPA: 3.7",
+      experience: "Data Science Intern — Example Corp (Jun 2025 – Aug 2025)\n- Built a churn prediction model in Python, improving retention targeting by 18%\n- Automated weekly SQL reporting, saving 4 hours per week",
+      skills: "Python, SQL, pandas, scikit-learn, TensorFlow, Tableau, Matplotlib, JavaScript, Git",
+      projects: "AI Resume Builder: three-agent LLM pipeline (Node.js, Express, Groq)\nSales dashboard in Tableau for a capstone project",
+    });
+  }
+
   if (agent === "coach") {
     return JSON.stringify({
       focusAreas: [

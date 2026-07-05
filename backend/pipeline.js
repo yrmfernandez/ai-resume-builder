@@ -2,6 +2,7 @@ import { extract } from "./agents/extractor.js";
 import { write } from "./agents/writer.js";
 import { judge } from "./agents/judge.js";
 import { coach } from "./agents/coach.js";
+import { recommendRoles } from "./agents/roles.js";
 
 const MAX_ITERATIONS = 3;
 
@@ -92,6 +93,18 @@ export async function generateResume(jobDescription, userDetails, onProgress = (
     onProgress({ stage: "coach", status: "failed", detail: "Prep plan unavailable" });
   }
 
+  // Role recommendations — which job titles this candidate should target.
+  // Optional, like the coach: a failure here must not sink the resume.
+  let roles = null;
+  onProgress({ stage: "roles", status: "running" });
+  try {
+    roles = await recommendRoles(extracted);
+    onProgress({ stage: "roles", status: "done" });
+  } catch (err) {
+    console.error("[pipeline] roles failed (non-fatal):", err.message);
+    onProgress({ stage: "roles", status: "failed", detail: "Role recommendations unavailable" });
+  }
+
   return {
     resume: best.resume,
     approved: best.approved,
@@ -100,5 +113,6 @@ export async function generateResume(jobDescription, userDetails, onProgress = (
     history,
     keywords,
     coaching,
+    roles,
   };
 }

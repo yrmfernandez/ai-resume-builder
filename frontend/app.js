@@ -1,11 +1,19 @@
-/* ResumeForge frontend — talks to the Express backend's streaming endpoint
-   and renders the three-agent pipeline live. No frameworks, no build step. */
+/* HireLift frontend — talks to the Express backend's streaming endpoint and
+   renders the multi-agent pipeline live. No frameworks, no build step. */
 
 const $ = (id) => document.getElementById(id);
 
 const els = {
   jd: $("jobDescription"),
-  personalInfo: $("personalInfo"),
+  // personal (separate fields)
+  firstName: $("firstName"),
+  lastName: $("lastName"),
+  email: $("email"),
+  phone: $("phone"),
+  location: $("location"),
+  linkedin: $("linkedin"),
+  github: $("github"),
+  portfolio: $("portfolio"),
   education: $("education"),
   workExperience: $("workExperience"),
   skills: $("skills"),
@@ -17,6 +25,16 @@ const els = {
   generateBtn: $("generateBtn"),
   sampleBtn: $("sampleBtn"),
   formError: $("formError"),
+  // save / upload / theme
+  saveBtn: $("saveBtn"),
+  restoreBtn: $("restoreBtn"),
+  clearSavedBtn: $("clearSavedBtn"),
+  saveStatus: $("saveStatus"),
+  resumeUpload: $("resumeUpload"),
+  uploadStatus: $("uploadStatus"),
+  themeToggle: $("themeToggle"),
+  themeToggleText: $("themeToggleText"),
+  // pipeline + result
   pipeline: $("pipeline"),
   runLog: $("runLog"),
   loopBadge: $("loopBadge"),
@@ -35,16 +53,46 @@ const els = {
   downloadDocxBtn: $("downloadDocxBtn"),
   downloadMdBtn: $("downloadMdBtn"),
   printBtn: $("printBtn"),
+  roles: $("roles"),
+  rolesGrid: $("rolesGrid"),
+  rolesAdvice: $("rolesAdvice"),
   coaching: $("coaching"),
   coachingGrid: $("coachingGrid"),
   copyPlanBtn: $("copyPlanBtn"),
 };
 
 let lastPlan = null;
-
 const MAX_CHARS = 15000;
 let lastMarkdown = "";
 let isEditingPreview = false;
+
+/* --- theme (dark / light) ---------------------------------------------- */
+const THEME_KEY = "hirelift:theme";
+
+function applyTheme(theme) {
+  document.documentElement.setAttribute("data-theme", theme);
+  els.themeToggleText.textContent = theme === "dark" ? "Light" : "Dark";
+}
+
+function initTheme() {
+  let saved = null;
+  try { saved = localStorage.getItem(THEME_KEY); } catch {}
+  const prefersDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+  applyTheme(saved || (prefersDark ? "dark" : "light"));
+}
+
+els.themeToggle.addEventListener("click", () => {
+  const current = document.documentElement.getAttribute("data-theme") === "dark" ? "dark" : "light";
+  const next = current === "dark" ? "light" : "dark";
+  applyTheme(next);
+  try { localStorage.setItem(THEME_KEY, next); } catch {}
+});
+initTheme();
+
+/* --- field registry ----------------------------------------------------- */
+// Every persisted/serialized field lives here once.
+const personalFields = ["firstName", "lastName", "email", "phone", "location", "linkedin", "github", "portfolio"];
+const allFieldIds = ["jd", ...personalFields, "education", "workExperience", "skills", "projects"];
 
 /* --- character counters ------------------------------------------------ */
 function bindCounter(textarea, counter) {
@@ -58,18 +106,33 @@ function bindCounter(textarea, counter) {
 }
 bindCounter(els.jd, els.jdCount);
 
+/* Build the personal-info block from the separate fields. */
+function buildPersonalInfo() {
+  const name = [els.firstName.value.trim(), els.lastName.value.trim()].filter(Boolean).join(" ");
+  const rows = [
+    ["Name", name],
+    ["Email", els.email.value.trim()],
+    ["Phone", els.phone.value.trim()],
+    ["Location", els.location.value.trim()],
+    ["LinkedIn", els.linkedin.value.trim()],
+    ["GitHub", els.github.value.trim()],
+    ["Portfolio", els.portfolio.value.trim()],
+  ].filter(([, v]) => v);
+  return rows.map(([k, v]) => `${k}: ${v}`).join("\n");
+}
+
 const detailFields = [
-  { label: "Personal Information", el: els.personalInfo },
-  { label: "Education", el: els.education },
-  { label: "Work Experience", el: els.workExperience },
-  { label: "Skills", el: els.skills },
-  { label: "Projects / Achievements", el: els.projects },
+  { label: "Personal Information", get: buildPersonalInfo },
+  { label: "Education", get: () => els.education.value.trim() },
+  { label: "Work Experience", get: () => els.workExperience.value.trim() },
+  { label: "Skills", get: () => els.skills.value.trim() },
+  { label: "Projects / Achievements", get: () => els.projects.value.trim() },
 ];
 
 function buildUserDetails() {
   return detailFields
-    .map(({ label, el }) => {
-      const value = el.value.trim();
+    .map(({ label, get }) => {
+      const value = get();
       return value ? `${label}:\n${value}` : "";
     })
     .filter(Boolean)
@@ -82,10 +145,17 @@ function updateDetailsCount() {
   els.detailsCount.classList.toggle("over", n > MAX_CHARS);
 }
 
-detailFields.forEach(({ el }) => el.addEventListener("input", updateDetailsCount));
+// Recount + autosave-dirty on any input across all fields.
+allFieldIds.forEach((id) => {
+  els[id].addEventListener("input", () => {
+    updateDetailsCount();
+    markUnsaved();
+  });
+});
 updateDetailsCount();
 
-const steps = ["job", "personal", "education", "experience", "skills", "projects"];
+/* --- steps -------------------------------------------------------------- */
+const steps = ["job", "about", "experience", "skills", "projects"];
 let currentStep = 0;
 
 function showStep(index) {
@@ -105,9 +175,8 @@ function showStep(index) {
   els.generateBtn.hidden = currentStep !== steps.length - 1;
 
   const nextLabel = {
-    job: "Next: Personal Info",
-    personal: "Next: Education",
-    education: "Next: Experience",
+    job: "Next: Personal & Education",
+    about: "Next: Experience",
     experience: "Next: Skills",
     skills: "Next: Projects",
   };
@@ -116,14 +185,220 @@ function showStep(index) {
 }
 
 document.querySelectorAll(".step-tab").forEach((tab) => {
-  tab.addEventListener("click", () => {
-    showStep(steps.indexOf(tab.dataset.step));
-  });
+  tab.addEventListener("click", () => showStep(steps.indexOf(tab.dataset.step)));
 });
 
 els.prevStepBtn.addEventListener("click", () => showStep(currentStep - 1));
 els.nextStepBtn.addEventListener("click", () => showStep(currentStep + 1));
 showStep(0);
+
+/* --- save / restore (localStorage, browser-only) ----------------------- */
+const SAVE_KEY = "hirelift:draft";
+
+function collectState() {
+  const state = {};
+  allFieldIds.forEach((id) => { state[id] = els[id].value; });
+  state.savedAt = new Date().toISOString();
+  return state;
+}
+
+function applyState(state) {
+  allFieldIds.forEach((id) => {
+    if (typeof state[id] === "string") els[id].value = state[id];
+  });
+  els.jd.dispatchEvent(new Event("input"));
+  updateDetailsCount();
+}
+
+function hasSaved() {
+  try { return !!localStorage.getItem(SAVE_KEY); } catch { return false; }
+}
+
+function refreshSavedControls() {
+  els.clearSavedBtn.hidden = !hasSaved();
+  els.restoreBtn.disabled = !hasSaved();
+}
+
+function flashStatus(el, msg, kind = "") {
+  el.textContent = msg;
+  el.className = `${el.id === "saveStatus" ? "save-status" : "upload-status"} ${kind}`.trim();
+}
+
+function markUnsaved() {
+  if (hasSaved()) flashStatus(els.saveStatus, "Unsaved changes", "warn");
+}
+
+els.saveBtn.addEventListener("click", () => {
+  try {
+    localStorage.setItem(SAVE_KEY, JSON.stringify(collectState()));
+    flashStatus(els.saveStatus, "Saved to this browser ✓", "ok");
+    refreshSavedControls();
+  } catch {
+    flashStatus(els.saveStatus, "Could not save (storage full or blocked)", "err");
+  }
+});
+
+els.restoreBtn.addEventListener("click", () => {
+  try {
+    const raw = localStorage.getItem(SAVE_KEY);
+    if (!raw) return flashStatus(els.saveStatus, "Nothing saved yet", "warn");
+    applyState(JSON.parse(raw));
+    flashStatus(els.saveStatus, "Restored ✓", "ok");
+  } catch {
+    flashStatus(els.saveStatus, "Could not restore saved data", "err");
+  }
+});
+
+els.clearSavedBtn.addEventListener("click", () => {
+  try { localStorage.removeItem(SAVE_KEY); } catch {}
+  flashStatus(els.saveStatus, "Saved data cleared", "warn");
+  refreshSavedControls();
+});
+
+// On load, offer restore if a draft exists.
+refreshSavedControls();
+if (hasSaved()) flashStatus(els.saveStatus, "Saved draft found — click Restore", "");
+
+/* --- upload existing resume -------------------------------------------- */
+els.resumeUpload.addEventListener("change", async () => {
+  const file = els.resumeUpload.files?.[0];
+  if (!file) return;
+
+  flashStatus(els.uploadStatus, `Reading ${file.name}…`, "");
+  const form = new FormData();
+  form.append("resume", file);
+
+  try {
+    const res = await fetch("/api/parse-resume", { method: "POST", body: form });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || `Upload failed (${res.status})`);
+
+    applyParsedResume(data);
+    flashStatus(els.uploadStatus, "Fields filled from your resume ✓", "ok");
+    showStep(1); // jump to Personal & Education so they can review
+  } catch (err) {
+    flashStatus(els.uploadStatus, err.message, "err");
+  } finally {
+    els.resumeUpload.value = ""; // allow re-uploading the same file
+  }
+});
+
+function applyParsedResume(data) {
+  const p = data.personal || {};
+  const setIf = (el, v) => { if (v && !el.value.trim()) el.value = v; };
+  setIf(els.firstName, p.firstName);
+  setIf(els.lastName, p.lastName);
+  setIf(els.email, p.email);
+  setIf(els.phone, p.phone);
+  setIf(els.location, p.location);
+  setIf(els.linkedin, p.linkedin);
+  setIf(els.github, p.github);
+  setIf(els.portfolio, p.portfolio);
+  setIf(els.education, data.education);
+  setIf(els.workExperience, data.experience);
+  setIf(els.skills, data.skills);
+  setIf(els.projects, data.projects);
+  updateDetailsCount();
+  markUnsaved();
+}
+
+/* --- smart suggestions (skills / experience / projects) ---------------- */
+const suggestSourceEl = { skills: els.skills, experience: els.workExperience, projects: els.projects };
+
+document.querySelectorAll(".suggest-zone").forEach((zone) => {
+  const section = zone.dataset.suggest;
+  zone.innerHTML = `
+    <div class="suggest-head">
+      <button class="btn-ghost suggest-btn" type="button">Suggest ${section} from job description</button>
+      <span class="suggest-status"></span>
+    </div>
+    <div class="suggest-list"></div>`;
+
+  const btn = zone.querySelector(".suggest-btn");
+  const status = zone.querySelector(".suggest-status");
+  const list = zone.querySelector(".suggest-list");
+
+  btn.addEventListener("click", async () => {
+    const jobDescription = els.jd.value.trim();
+    if (!jobDescription) {
+      status.textContent = "Paste a job description first (Job Description tab).";
+      status.className = "suggest-status err";
+      return;
+    }
+
+    btn.disabled = true;
+    status.textContent = "Thinking…";
+    status.className = "suggest-status";
+    list.innerHTML = "";
+
+    try {
+      const res = await fetch("/api/suggest", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ jobDescription, section, existing: suggestSourceEl[section].value }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || `Request failed (${res.status})`);
+
+      renderSuggestions(section, data.suggestions || [], list, status);
+    } catch (err) {
+      status.textContent = err.message;
+      status.className = "suggest-status err";
+    } finally {
+      btn.disabled = false;
+    }
+  });
+});
+
+function renderSuggestions(section, suggestions, list, status) {
+  if (!suggestions.length) {
+    status.textContent = "No suggestions came back — try refining the job description.";
+    return;
+  }
+  status.textContent = "Tap any that apply to you — they'll be added to the box above.";
+  status.className = "suggest-status";
+
+  list.innerHTML = "";
+  suggestions.forEach((s) => {
+    const chip = document.createElement("button");
+    chip.type = "button";
+    chip.className = "suggest-chip";
+    chip.innerHTML = `<span class="suggest-chip-text">${esc(s.text)}</span>`;
+    if (s.hint) chip.title = s.hint;
+
+    chip.addEventListener("click", () => {
+      addSuggestionToField(section, s.text);
+      chip.classList.add("added");
+      chip.disabled = true;
+    });
+
+    const wrap = document.createElement("div");
+    wrap.className = "suggest-item";
+    wrap.appendChild(chip);
+    if (s.hint) {
+      const hint = document.createElement("span");
+      hint.className = "suggest-hint";
+      hint.textContent = s.hint;
+      wrap.appendChild(hint);
+    }
+    list.appendChild(wrap);
+  });
+}
+
+function addSuggestionToField(section, text) {
+  const el = suggestSourceEl[section];
+  const current = el.value.trim();
+  if (section === "skills") {
+    // Comma-joined list.
+    const parts = current ? current.split(",").map((s) => s.trim()).filter(Boolean) : [];
+    if (!parts.some((p) => p.toLowerCase() === text.toLowerCase())) parts.push(text);
+    el.value = parts.join(", ");
+  } else {
+    // New line for experience / projects.
+    el.value = current ? `${current}\n${text}` : text;
+  }
+  el.dispatchEvent(new Event("input"));
+}
 
 /* --- sample data -------------------------------------------------------- */
 els.sampleBtn.addEventListener("click", () => {
@@ -140,31 +415,36 @@ Requirements:
 - Good communication skills
 
 Nice to have: experience with cloud platforms, REST APIs, or LLM applications.`;
-els.personalInfo.value = `Name: Juan Dela Cruz
-Email: juan.delacruz@email.com
-Phone: +63 912 345 6789
-GitHub: github.com/juandc
-LinkedIn: linkedin.com/in/juandc`;
 
-els.education.value = `BS Computer Science major in Data Science
+  els.firstName.value = "Juan";
+  els.lastName.value = "Dela Cruz";
+  els.email.value = "juan.delacruz@email.com";
+  els.phone.value = "+63 912 345 6789";
+  els.location.value = "Davao City, Philippines";
+  els.linkedin.value = "linkedin.com/in/juandc";
+  els.github.value = "github.com/juandc";
+  els.portfolio.value = "";
+
+  els.education.value = `BS Computer Science major in Data Science
 University of Mindanao, 2022-2026
 GPA: 3.7`;
 
-els.workExperience.value = `Data Science Intern at TechStart Davao, Summer 2025
+  els.workExperience.value = `Data Science Intern at TechStart Davao, Summer 2025
 - Built a customer churn prediction model with Python and scikit-learn
 - Presented findings to management
 - Improved customer targeting by 15%
 
 Freelance web scraping projects using Python`;
 
-els.skills.value = `Python, SQL, pandas, scikit-learn, TensorFlow, Tableau, Matplotlib, JavaScript, Git`;
+  els.skills.value = `Python, SQL, pandas, scikit-learn, TensorFlow, Tableau, Matplotlib, JavaScript, Git`;
 
-els.projects.value = `AI Resume Builder: three-agent LLM pipeline using Node.js, Express, and Groq API
+  els.projects.value = `AI Resume Builder: three-agent LLM pipeline using Node.js, Express, and Groq API
 Sales dashboard in Tableau for a local business capstone project
 Sentiment analysis of product reviews using TensorFlow`;
-els.jd.dispatchEvent(new Event("input"));
-updateDetailsCount();
-showStep(0);
+
+  els.jd.dispatchEvent(new Event("input"));
+  updateDetailsCount();
+  showStep(0);
 });
 
 /* --- run log ------------------------------------------------------------- */
@@ -178,7 +458,7 @@ function log(text, cls = "") {
 }
 
 function setAgent(stage, state) {
-  const map = { extract: "agent-extract", write: "agent-write", judge: "agent-judge", coach: "agent-coach" };
+  const map = { extract: "agent-extract", write: "agent-write", judge: "agent-judge", coach: "agent-coach", roles: "agent-roles" };
   const el = $(map[stage]);
   if (!el) return;
   el.classList.remove("running", "done", "failed");
@@ -188,10 +468,11 @@ function setAgent(stage, state) {
 function resetPipelineUI() {
   els.runLog.innerHTML = "";
   els.loopBadge.hidden = true;
-  ["extract", "write", "judge", "coach"].forEach((s) => setAgent(s, null));
+  ["extract", "write", "judge", "coach", "roles"].forEach((s) => setAgent(s, null));
   els.pipeline.hidden = false;
   els.result.hidden = true;
   els.coaching.hidden = true;
+  els.roles.hidden = true;
   els.formError.hidden = true;
 }
 
@@ -229,6 +510,12 @@ function handleEvent(ev) {
     else { setAgent("coach", "done"); log("coach: prep plan ready", "t-pass"); }
   }
 
+  if (ev.stage === "roles") {
+    if (ev.status === "running") { setAgent("roles", "running"); log("roles: matching you to job titles…"); }
+    else if (ev.status === "failed") { setAgent("roles", "failed"); log("roles: recommendations unavailable (resume still ready)", "t-fail"); }
+    else { setAgent("roles", "done"); log("roles: recommendations ready", "t-pass"); }
+  }
+
   if (ev.stage === "done") showResult(ev.result);
 
   if (ev.stage === "error") {
@@ -243,7 +530,7 @@ els.generateBtn.addEventListener("click", async () => {
   const userDetails = buildUserDetails();
 
   if (!jobDescription || !userDetails) {
-    return showError("Both fields are required — paste the job description and your details.");
+    return showError("Both are required — paste the job description and fill in your details.");
   }
   if (jobDescription.length > MAX_CHARS || userDetails.length > MAX_CHARS) {
     return showError(`Each field must be under ${MAX_CHARS.toLocaleString()} characters.`);
@@ -252,7 +539,7 @@ els.generateBtn.addEventListener("click", async () => {
   els.generateBtn.disabled = true;
   els.generateBtn.textContent = "Agents working…";
   resetPipelineUI();
-  log("pipeline: starting three-agent run");
+  log("pipeline: starting multi-agent run");
 
   try {
     const res = await fetch("/api/generate/stream", {
@@ -266,7 +553,6 @@ els.generateBtn.addEventListener("click", async () => {
       throw new Error(err.error || `Server error (${res.status})`);
     }
 
-    // Read the NDJSON stream line by line.
     const reader = res.body.getReader();
     const decoder = new TextDecoder();
     let buffer = "";
@@ -276,7 +562,7 @@ els.generateBtn.addEventListener("click", async () => {
       if (done) break;
       buffer += decoder.decode(value, { stream: true });
       const lines = buffer.split("\n");
-      buffer = lines.pop(); // keep any partial line for the next chunk
+      buffer = lines.pop();
       for (const line of lines) {
         if (line.trim()) handleEvent(JSON.parse(line));
       }
@@ -309,12 +595,39 @@ function showResult(result) {
   els.keywordChips.innerHTML = "";
   for (const k of kw.matched) addChip(k, "matched");
   for (const k of kw.missing) addChip(k, "missing");
-  
+
   els.resumePaper.innerHTML = renderMarkdown(lastMarkdown);
   els.result.hidden = false;
   els.result.scrollIntoView({ behavior: "smooth", block: "start" });
 
+  renderRoles(result.roles);
   renderCoaching(result.coaching);
+}
+
+/* --- roles rendering ------------------------------------------------------- */
+function renderRoles(data) {
+  if (!data || !data.roles?.length) {
+    els.roles.hidden = true;
+    return;
+  }
+
+  els.rolesAdvice.textContent = data.generalAdvice || "";
+  els.rolesAdvice.hidden = !data.generalAdvice;
+
+  els.rolesGrid.innerHTML = data.roles.map((r) => {
+    const fit = (r.fit || "good").toLowerCase();
+    const keywords = (r.searchKeywords || []).map((k) => `<span class="role-kw">${esc(k)}</span>`).join("");
+    return `<div class="role-card ${fit}">
+      <div class="role-top">
+        <span class="role-title">${esc(r.title)}</span>
+        <span class="fit-tag ${fit}">${esc(fit)} fit</span>
+      </div>
+      <p class="role-why">${esc(r.why || "")}</p>
+      ${keywords ? `<div class="role-kws">${keywords}</div>` : ""}
+    </div>`;
+  }).join("");
+
+  els.roles.hidden = false;
 }
 
 /* --- coaching / prep plan rendering ---------------------------------------- */
@@ -330,7 +643,6 @@ function renderCoaching(plan) {
   if (plan.focusAreas?.length) {
     const items = plan.focusAreas.map((f) => {
       const priority = (f.priority || "medium").toLowerCase();
-
       return `<div class="prep-focus-item ${priority}">
         <div class="prep-focus-top">
           <span class="prep-topic">${esc(f.topic)}</span>
@@ -378,7 +690,6 @@ function renderCoaching(plan) {
 
 function listCard(title, items, span = "") {
   const lis = items.map((i) => `<li>${esc(i)}</li>`).join("");
-
   return `<section class="prep-block ${span}">
     <h3>${esc(title)}</h3>
     <ul>${lis}</ul>
@@ -423,6 +734,7 @@ function planToText(plan) {
   return lines.join("\n");
 }
 
+/* --- preview editor -------------------------------------------------------- */
 function showPreviewEditor() {
   isEditingPreview = true;
   els.resumePaper.innerHTML = "";
@@ -453,11 +765,8 @@ function savePreviewEditor() {
 }
 
 els.editPreviewBtn.addEventListener("click", () => {
-  if (isEditingPreview) {
-    savePreviewEditor();
-  } else {
-    showPreviewEditor();
-  }
+  if (isEditingPreview) savePreviewEditor();
+  else showPreviewEditor();
 });
 
 function addChip(text, cls) {
@@ -548,22 +857,14 @@ els.downloadMenuBtn.addEventListener("click", () => {
 
 els.downloadPdfBtn.addEventListener("click", async () => {
   closeDownloadMenu();
-
-  try {
-    await downloadGeneratedFile("pdf");
-  } catch (err) {
-    showError(err.message);
-  }
+  try { await downloadGeneratedFile("pdf"); }
+  catch (err) { showError(err.message); }
 });
 
 els.downloadDocxBtn.addEventListener("click", async () => {
   closeDownloadMenu();
-
-  try {
-    await downloadGeneratedFile("docx");
-  } catch (err) {
-    showError(err.message);
-  }
+  try { await downloadGeneratedFile("docx"); }
+  catch (err) { showError(err.message); }
 });
 
 els.downloadMdBtn.addEventListener("click", () => {
@@ -572,9 +873,7 @@ els.downloadMdBtn.addEventListener("click", () => {
 });
 
 document.addEventListener("click", (event) => {
-  if (!event.target.closest(".download-menu")) {
-    closeDownloadMenu();
-  }
+  if (!event.target.closest(".download-menu")) closeDownloadMenu();
 });
 
 els.copyBtn.addEventListener("click", async () => {
