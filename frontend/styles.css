@@ -435,46 +435,6 @@ a:focus-visible {
 .chip.matched { background: var(--highlight); border-color: var(--ink); }
 .chip.missing { color: var(--ink-soft); text-decoration: line-through; }
 
-.suggestions-panel {
-  margin: 18px 0 20px;
-  padding: 18px 20px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: var(--surface);
-}
-
-.suggestions-header {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  align-items: baseline;
-  margin-bottom: 10px;
-  flex-wrap: wrap;
-}
-
-.suggestions-label {
-  font-family: var(--font-mono);
-  font-size: 0.78rem;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--ink);
-}
-
-.suggestions-note {
-  font-family: var(--font-mono);
-  font-size: 0.72rem;
-  color: var(--ink-soft);
-}
-
-.suggestions-list {
-  margin-left: 18px;
-  color: var(--ink-soft);
-}
-
-.suggestions-list li {
-  margin: 6px 0;
-}
-
 .resume-preview-wrap {
   position: relative;
 }
@@ -544,60 +504,111 @@ a:focus-visible {
 .resume-paper ul { margin: 6px 0 6px 20px; }
 .resume-paper li { margin: 3px 0; }
 
-/* --- coaching / prep plan ---------------------------------------------------- */
-.coaching { margin-top: 48px; }
+/* --- before you apply ---------------------------------------------------- */
+.coaching {
+  margin-top: 44px;
+}
 
 .coaching-head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 12px;
-  margin-bottom: 20px;
-  padding-bottom: 12px;
-  border-bottom: 2px solid var(--ink);
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px 16px;
+  align-items: start;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--line);
 }
+
 .coaching-head h2 {
   font-family: var(--font-display);
   font-weight: 900;
-  font-size: 1.5rem;
+  font-size: 1.45rem;
   letter-spacing: -0.02em;
 }
-.coaching-head p { color: var(--ink-soft); font-size: 0.9rem; flex: 1; min-width: 200px; }
+
+.coaching-head p {
+  color: var(--ink-soft);
+  font-size: 0.95rem;
+  max-width: 62ch;
+}
+
+.coaching-head .btn-ghost {
+  grid-row: 1 / span 2;
+  grid-column: 2;
+}
 
 .coaching-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 16px;
+  gap: 0 28px;
+  padding: 18px 0 0;
 }
 
-.coach-card {
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  padding: 20px 22px;
+.prep-block {
+  padding: 18px 0;
+  border-bottom: 1px solid var(--line);
 }
-.coach-card.span-2 { grid-column: 1 / -1; }
 
-.coach-card h3 {
-  font-family: var(--font-display);
-  font-weight: 700;
-  font-size: 1rem;
+.prep-block.span-2 {
+  grid-column: 1 / -1;
+}
+
+.prep-block h3 {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
   margin-bottom: 12px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
 }
-.coach-card h3 .icon { font-size: 1.1rem; }
 
-.coach-card ul { margin: 0; padding-left: 18px; }
-.coach-card li { margin: 7px 0; font-size: 0.92rem; }
+.prep-block ul {
+  margin-left: 18px;
+  color: var(--ink-soft);
+}
 
-.focus-item { margin: 10px 0; padding-left: 12px; border-left: 3px solid var(--line); }
-.focus-item.high { border-left-color: var(--fail); }
-.focus-item.medium { border-left-color: var(--highlight); }
-.focus-item.low { border-left-color: var(--pass); }
-.focus-topic { font-weight: 700; }
-.focus-why { color: var(--ink-soft); font-size: 0.87rem; }
+.prep-block li {
+  margin: 7px 0;
+}
+
+.prep-focus-list {
+  display: grid;
+  gap: 10px;
+}
+
+.prep-focus-item {
+  padding-left: 12px;
+  border-left: 3px solid var(--line);
+}
+
+.prep-focus-item.high {
+  border-left-color: var(--fail);
+}
+
+.prep-focus-item.medium {
+  border-left-color: var(--highlight);
+}
+
+.prep-focus-item.low {
+  border-left-color: var(--pass);
+}
+
+.prep-focus-top {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.prep-topic {
+  font-weight: 700;
+}
+
+.prep-focus-item p {
+  color: var(--ink-soft);
+  font-size: 0.9rem;
+  margin-top: 2px;
+}
+
 .priority-tag {
   font-family: var(--font-mono);
   font-size: 0.66rem;
@@ -605,18 +616,45 @@ a:focus-visible {
   letter-spacing: 0.05em;
   padding: 1px 7px;
   border-radius: 999px;
-  margin-left: 6px;
-  vertical-align: middle;
+  border: 1px solid var(--line);
+  color: var(--ink-soft);
 }
-.priority-tag.high { background: var(--fail); color: #fff; }
-.priority-tag.medium { background: var(--highlight); color: var(--ink); }
-.priority-tag.low { background: var(--pass); color: #fff; }
 
-.qa-item { margin: 14px 0; }
-.qa-q { font-weight: 700; font-size: 0.92rem; }
-.qa-q::before { content: "Q: "; color: var(--ink-soft); }
-.qa-a { font-size: 0.88rem; color: var(--ink-soft); margin-top: 3px; }
-.qa-a::before { content: "How to answer: "; font-weight: 700; color: var(--ink); }
+.priority-tag.high {
+  border-color: var(--fail);
+  color: var(--fail);
+}
+
+.priority-tag.medium {
+  border-color: var(--highlight);
+  color: var(--ink);
+  background: var(--highlight);
+}
+
+.priority-tag.low {
+  border-color: var(--pass);
+  color: var(--pass);
+}
+
+.qa-item {
+  margin: 14px 0;
+}
+
+.qa-q {
+  font-weight: 700;
+  font-size: 0.95rem;
+}
+
+.qa-q::before {
+  content: "Q: ";
+  color: var(--ink-soft);
+}
+
+.qa-a {
+  color: var(--ink-soft);
+  font-size: 0.9rem;
+  margin-top: 3px;
+}
 
 /* --- footer ----------------------------------------------------------------- */
 .site-footer {

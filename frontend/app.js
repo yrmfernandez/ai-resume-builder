@@ -26,8 +26,6 @@ const els = {
   verdictMeta: $("verdictMeta"),
   keywordsLabel: $("keywordsLabel"),
   keywordChips: $("keywordChips"),
-  suggestionsPanel: $("suggestionsPanel"),
-  suggestionsList: $("suggestionsList"),
   resumePaper: $("resumePaper"),
   editPreviewBtn: $("editPreviewBtn"),
   copyBtn: $("copyBtn"),
@@ -311,9 +309,7 @@ function showResult(result) {
   els.keywordChips.innerHTML = "";
   for (const k of kw.matched) addChip(k, "matched");
   for (const k of kw.missing) addChip(k, "missing");
-
-  showSuggestions(result);
-
+  
   els.resumePaper.innerHTML = renderMarkdown(lastMarkdown);
   els.result.hidden = false;
   els.result.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -324,47 +320,69 @@ function showResult(result) {
 /* --- coaching / prep plan rendering ---------------------------------------- */
 function renderCoaching(plan) {
   lastPlan = plan;
-  if (!plan) { els.coaching.hidden = true; return; }
+  if (!plan) {
+    els.coaching.hidden = true;
+    return;
+  }
 
-  const cards = [];
+  const sections = [];
 
   if (plan.focusAreas?.length) {
     const items = plan.focusAreas.map((f) => {
-      const p = (f.priority || "medium").toLowerCase();
-      return `<div class="focus-item ${p}">
-        <span class="focus-topic">${esc(f.topic)}</span><span class="priority-tag ${p}">${esc(p)}</span>
-        <div class="focus-why">${esc(f.why)}</div>
+      const priority = (f.priority || "medium").toLowerCase();
+
+      return `<div class="prep-focus-item ${priority}">
+        <div class="prep-focus-top">
+          <span class="prep-topic">${esc(f.topic)}</span>
+          <span class="priority-tag ${priority}">${esc(priority)}</span>
+        </div>
+        <p>${esc(f.why)}</p>
       </div>`;
     }).join("");
-    cards.push(`<div class="coach-card span-2"><h3><span class="icon">🎯</span>What to focus on</h3>${items}</div>`);
+
+    sections.push(`<section class="prep-block span-2">
+      <h3>Focus areas</h3>
+      <div class="prep-focus-list">${items}</div>
+    </section>`);
   }
 
   if (plan.skillsToStrengthen?.length) {
-    cards.push(listCard("💪", "Skills to strengthen", plan.skillsToStrengthen));
+    sections.push(listCard("Skills to strengthen", plan.skillsToStrengthen));
   }
 
   if (plan.quickWins?.length) {
-    cards.push(listCard("⚡", "Quick wins", plan.quickWins));
+    sections.push(listCard("Quick wins", plan.quickWins));
   }
 
   if (plan.interviewQuestions?.length) {
     const qa = plan.interviewQuestions.map((q) =>
-      `<div class="qa-item"><div class="qa-q">${esc(q.question)}</div><div class="qa-a">${esc(q.answerGuidance)}</div></div>`
+      `<div class="qa-item">
+        <div class="qa-q">${esc(q.question)}</div>
+        <div class="qa-a">${esc(q.answerGuidance)}</div>
+      </div>`
     ).join("");
-    cards.push(`<div class="coach-card span-2"><h3><span class="icon">💬</span>Likely interview questions</h3>${qa}</div>`);
+
+    sections.push(`<section class="prep-block span-2">
+      <h3>Likely interview questions</h3>
+      ${qa}
+    </section>`);
   }
 
   if (plan.resourceSuggestions?.length) {
-    cards.push(listCard("📚", "Resources", plan.resourceSuggestions, "span-2"));
+    sections.push(listCard("Resources", plan.resourceSuggestions, "span-2"));
   }
 
-  els.coachingGrid.innerHTML = cards.join("");
+  els.coachingGrid.innerHTML = sections.join("");
   els.coaching.hidden = false;
 }
 
-function listCard(icon, title, items, span = "") {
+function listCard(title, items, span = "") {
   const lis = items.map((i) => `<li>${esc(i)}</li>`).join("");
-  return `<div class="coach-card ${span}"><h3><span class="icon">${icon}</span>${esc(title)}</h3><ul>${lis}</ul></div>`;
+
+  return `<section class="prep-block ${span}">
+    <h3>${esc(title)}</h3>
+    <ul>${lis}</ul>
+  </section>`;
 }
 
 function esc(s) {
@@ -448,60 +466,6 @@ function addChip(text, cls) {
   chip.textContent = text;
   chip.title = cls === "matched" ? "Found in your resume" : "In the job post, missing from your resume";
   els.keywordChips.appendChild(chip);
-}
-
-function showSuggestions(result) {
-  const suggestions = [];
-  const markdown = lastMarkdown.toLowerCase();
-  const kw = result.keywords || { missing: [] };
-  const missing = kw.missing || [];
-
-  if (missing.length) {
-    suggestions.push(
-      `If true, add missing job keywords naturally: ${missing.join(", ")}.`
-    );
-  }
-
-  const weakSections = [];
-
-  if (!markdown.includes("education")) weakSections.push("education");
-  if (!markdown.includes("project")) weakSections.push("projects");
-  if (!markdown.includes("experience")) weakSections.push("work experience");
-  if (!markdown.includes("skill")) weakSections.push("skills");
-
-  if (weakSections.length) {
-    suggestions.push(
-      `Strengthen weak or missing sections: ${weakSections.join(", ")}.`
-    );
-  }
-
-  const bulletCount = (lastMarkdown.match(/^[-*]\s+/gm) || []).length;
-
-  if (bulletCount < 4) {
-    suggestions.push(
-      "Add more achievement bullets with numbers, tools used, and measurable results."
-    );
-  }
-
-  if ((result.score || 0) < 90) {
-    suggestions.push(
-      "Review the job post again and tailor the summary and work experience more closely to the role."
-    );
-  }
-
-  suggestions.push(
-    "Before applying, check spelling, verify all claims are true, and export as PDF unless the employer asks for Word."
-  );
-
-  els.suggestionsList.innerHTML = "";
-
-  suggestions.forEach((text) => {
-    const item = document.createElement("li");
-    item.textContent = text;
-    els.suggestionsList.appendChild(item);
-  });
-
-  els.suggestionsPanel.hidden = suggestions.length === 0;
 }
 
 /* --- minimal markdown renderer (headings, bold, italics, bullets) ------------------ */
