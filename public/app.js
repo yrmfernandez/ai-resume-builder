@@ -812,8 +812,14 @@ function renderMarkdown(md) {
 }
 
 /* --- export actions --------------------------------------------------------------- */
+function getCurrentResumeMarkdown() {
+  const editor = $("resumeEditor");
+  return editor ? editor.value : lastMarkdown;
+}
+
 function downloadMarkdown() {
-  const blob = new Blob([lastMarkdown], { type: "text/markdown" });
+  const markdown = getCurrentResumeMarkdown();
+  const blob = new Blob([markdown], { type: "text/markdown" });
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
   a.download = "resume.md";
@@ -828,7 +834,7 @@ async function downloadGeneratedFile(format) {
   const res = await fetch(endpoint, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ markdown: lastMarkdown }),
+    body: JSON.stringify({ markdown: getCurrentResumeMarkdown() }),
   });
 
   if (!res.ok) {
@@ -877,7 +883,7 @@ document.addEventListener("click", (event) => {
 });
 
 els.copyBtn.addEventListener("click", async () => {
-  await navigator.clipboard.writeText(lastMarkdown);
+  await navigator.clipboard.writeText(getCurrentResumeMarkdown());
   els.copyBtn.textContent = "Copied";
   setTimeout(() => (els.copyBtn.textContent = "Copy Resume"), 1500);
 });

@@ -25,8 +25,8 @@
 
   <main>
     <section class="hero">
-      <h1>Lift your resume past the bots <span class="hero-sub">and into human hands.</span></h1>
-      <p class="hero-copy">Paste a job description and your details — or upload the resume you already have. An <strong>extractor</strong> pulls what matters, a <strong>writer</strong> drafts an ATS-friendly resume, a <strong>judge</strong> rejects it until it's right, and a <strong>coach</strong> tells you which roles to chase next.</p>
+      <h1>Get past the filters. <span class="hero-sub">Closer to the interview.</span></h1>
+      <p class="hero-copy">Add the job post and your current resume. HireLift helps you spot what’s missing, sharpen what’s already there, and send a resume that matches the role more clearly.</p>
     </section>
 
     <!-- Save / resume-later + upload bar -->
@@ -91,15 +91,15 @@
               <input type="text" id="location" placeholder="Davao City, Philippines" />
             </div>
             <div class="field">
-              <label class="field-label" for="linkedin">LinkedIn</label>
+              <label class="field-label" for="linkedin">LinkedIn <span class="optional-label">optional</span></label>
               <input type="text" id="linkedin" placeholder="linkedin.com/in/juandc" />
             </div>
             <div class="field">
-              <label class="field-label" for="github">GitHub</label>
+              <label class="field-label" for="github">GitHub <span class="optional-label">optional</span></label>
               <input type="text" id="github" placeholder="github.com/juandc" />
             </div>
             <div class="field">
-              <label class="field-label" for="portfolio">Portfolio / website</label>
+              <label class="field-label" for="portfolio">Portfolio <span class="optional-label">optional</span></label>
               <input type="text" id="portfolio" placeholder="juandc.dev" />
             </div>
           </div>
@@ -206,14 +206,14 @@
 
         <div class="result-actions">
           <div class="download-menu">
-            <button class="btn-ghost" id="downloadMenuBtn" type="button" aria-expanded="false">
-              Download v
+            <button class="btn-ghost download-trigger" id="downloadMenuBtn" type="button" aria-expanded="false" aria-haspopup="menu">
+              Download <span aria-hidden="true">&#9662;</span>
             </button>
 
             <div class="download-options" id="downloadMenu" hidden>
-              <button type="button" id="downloadPdfBtn">Download as PDF</button>
-              <button type="button" id="downloadDocxBtn">Download as Word (.docx)</button>
-              <button type="button" id="downloadMdBtn">Download as Markdown (.md)</button>
+              <button type="button" id="downloadPdfBtn">PDF (.pdf)</button>
+              <button type="button" id="downloadDocxBtn">Word document (.docx)</button>
+              <button type="button" id="downloadMdBtn">Markdown (.md)</button>
             </div>
           </div>
 

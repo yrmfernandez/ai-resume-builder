@@ -27,12 +27,38 @@
   --ink: #eceee8;
   --ink-soft: #9aa0ac;
   --line: #333842;
-  --highlight: #ffe45c;
+  --highlight: #d6b84a;
   --pass: #4bc79f;
   --fail: #f0937b;
   --terminal: #0c0d10;
   --terminal-text: #d7dbcf;
   --field-bg: #23262d;
+}
+
+:root[data-theme="dark"] .role-card.good {
+  border-left-color: #b99a3d;
+}
+
+:root[data-theme="dark"] .fit-tag.good,
+:root[data-theme="dark"] .priority-tag.medium {
+  background: #b99a3d;
+  border-color: #b99a3d;
+  color: #111318;
+}
+
+:root[data-theme="dark"] .chip.matched {
+  background: #b99a3d;
+  border-color: #b99a3d;
+  color: #111318;
+}
+
+:root[data-theme="dark"] .btn-primary {
+  color: #111318;
+  box-shadow: 2px 2px 0 #000;
+}
+
+:root[data-theme="dark"] .step-tab.is-active {
+  color: #111318;
 }
 
 * { box-sizing: border-box; margin: 0; }
@@ -117,7 +143,15 @@ main {
   letter-spacing: -0.03em;
 }
 
-.hero-sub { color: var(--ink-soft); font-weight: 700; }
+.hero-sub {
+  display: block;
+  color: var(--ink-soft);
+  font-weight: 900;
+}
+
+:root[data-theme="dark"] .hero-sub {
+  color: #bfc5d1;
+}
 
 .hero-copy {
   margin-top: 16px;
@@ -278,6 +312,26 @@ a:focus-visible {
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: var(--ink-soft);
+}
+
+.optional-label {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 6px;
+  padding: 1px 6px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--ink-soft);
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  font-weight: 400;
+  text-transform: lowercase;
+  letter-spacing: 0;
+  opacity: 0.85;
+}
+
+:root[data-theme="dark"] .optional-label {
+  background: rgba(255, 255, 255, 0.03);
 }
 
 input[type="text"],
@@ -512,17 +566,27 @@ input[type="tel"] {
   position: relative;
 }
 
+.download-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
 .download-options {
   position: absolute;
   top: calc(100% + 8px);
   right: 0;
   z-index: 5;
-  min-width: 220px;
+  min-width: 230px;
   padding: 6px;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--surface);
   box-shadow: 0 12px 28px rgba(22, 24, 29, 0.12);
+}
+
+.download-options button + button {
+  margin-top: 2px;
 }
 
 .download-options button {
