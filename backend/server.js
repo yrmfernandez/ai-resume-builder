@@ -4,6 +4,15 @@ import dotenv from "dotenv";
 import path from "path";
 import { fileURLToPath } from "url";
 import { generateResume } from "./pipeline.js";
+import PDFDocument from "pdfkit";
+import {
+  AlignmentType,
+  Document,
+  HeadingLevel,
+  Packer,
+  Paragraph,
+  TextRun,
+} from "docx";
 
 dotenv.config();
 
@@ -31,6 +40,122 @@ function validateBody(body) {
   return null;
 }
 
+function validateExportBody(body) {
+  const { markdown } = body || {};
+  if (!markdown || typeof markdown !== "string") {
+    return "Resume markdown is required.";
+  }
+  if (markdown.length > 30000) {
+    return "Resume markdown must be under 30,000 characters.";
+  }
+  return null;
+}
+
+function cleanMarkdownText(text) {
+  return text
+    .replace(/\*\*(.*?)\*\*/g, "$1")
+    .replace(/\*(.*?)\*/g, "$1")
+    .trim();
+}
+
+function markdownToDocxParagraphs(markdown) {
+  return markdown.split("\n").map((rawLine) => {
+    const line = rawLine.trim();
+
+    if (!line) {
+      return new Paragraph({ text: "" });
+    }
+
+    if (line.startsWith("# ")) {
+      return new Paragraph({
+        text: cleanMarkdownText(line.replace("# ", "")),
+        heading: HeadingLevel.TITLE,
+        alignment: AlignmentType.CENTER,
+      });
+    }
+
+    if (line.startsWith("## ")) {
+      return new Paragraph({
+        text: cleanMarkdownText(line.replace("## ", "")),
+        heading: HeadingLevel.HEADING_2,
+      });
+    }
+
+    if (line.startsWith("### ")) {
+      return new Paragraph({
+        text: cleanMarkdownText(line.replace("### ", "")),
+        heading: HeadingLevel.HEADING_3,
+      });
+    }
+
+    if (line.startsWith("- ") || line.startsWith("* ")) {
+      return new Paragraph({
+        text: cleanMarkdownText(line.replace(/^[-*]\s+/, "")),
+        bullet: { level: 0 },
+      });
+    }
+
+    return new Paragraph({
+      children: [new TextRun(cleanMarkdownText(line))],
+    });
+  });
+}
+
+function writeMarkdownToPdf(doc, markdown) {
+  const lines = markdown.split("\n");
+
+  for (const rawLine of lines) {
+    const line = rawLine.trim();
+
+    if (!line) {
+      doc.moveDown(0.5);
+      continue;
+    }
+
+    if (line.startsWith("# ")) {
+      doc
+        .font("Helvetica-Bold")
+        .fontSize(20)
+        .text(cleanMarkdownText(line.replace("# ", "")), { align: "center" });
+      doc.moveDown(0.6);
+      continue;
+    }
+
+    if (line.startsWith("## ")) {
+      doc.moveDown(0.5);
+      doc
+        .font("Helvetica-Bold")
+        .fontSize(12)
+        .text(cleanMarkdownText(line.replace("## ", "")).toUpperCase());
+      doc.moveTo(doc.x, doc.y + 2).lineTo(540, doc.y + 2).stroke();
+      doc.moveDown(0.6);
+      continue;
+    }
+
+    if (line.startsWith("### ")) {
+      doc
+        .font("Helvetica-Bold")
+        .fontSize(11)
+        .text(cleanMarkdownText(line.replace("### ", "")));
+      continue;
+    }
+
+    if (line.startsWith("- ") || line.startsWith("* ")) {
+      doc
+        .font("Helvetica")
+        .fontSize(10.5)
+        .text(`• ${cleanMarkdownText(line.replace(/^[-*]\s+/, ""))}`, {
+          indent: 16,
+        });
+      continue;
+    }
+
+    doc
+      .font("Helvetica")
+      .fontSize(10.5)
+      .text(cleanMarkdownText(line), { lineGap: 3 });
+  }
+}
 // Health check
 app.get("/health", (req, res) => {
   res.json({ status: "ok", mock: process.env.MOCK_MODE === "true" });
@@ -74,6 +199,45 @@ app.post("/api/generate/stream", async (req, res) => {
   } finally {
     res.end();
   }
+});
+
+app.post("/api/export/pdf", (req, res) => {
+  const error = validateExportBody(req.body);
+  if (error) return res.status(400).json({ error });
+
+  res.setHeader("Content-Type", "application/pdf");
+  res.setHeader("Content-Disposition", 'attachment; filename="resume.pdf"');
+
+  const doc = new PDFDocument({
+    size: "LETTER",
+    margins: { top: 54, bottom: 54, left: 54, right: 54 },
+  });
+
+  doc.pipe(res);
+  writeMarkdownToPdf(doc, req.body.markdown);
+  doc.end();
+});
+
+app.post("/api/export/docx", async (req, res) => {
+  const error = validateExportBody(req.body);
+  if (error) return res.status(400).json({ error });
+
+  const doc = new Document({
+    sections: [
+      {
+        children: markdownToDocxParagraphs(req.body.markdown),
+      },
+    ],
+  });
+
+  const buffer = await Packer.toBuffer(doc);
+
+  res.setHeader(
+    "Content-Type",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+  );
+  res.setHeader("Content-Disposition", 'attachment; filename="resume.docx"');
+  res.send(buffer);
 });
 
 app.listen(PORT, () => {

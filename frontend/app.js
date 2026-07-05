@@ -5,9 +5,15 @@ const $ = (id) => document.getElementById(id);
 
 const els = {
   jd: $("jobDescription"),
-  ud: $("userDetails"),
+  personalInfo: $("personalInfo"),
+  education: $("education"),
+  workExperience: $("workExperience"),
+  skills: $("skills"),
+  projects: $("projects"),
   jdCount: $("jdCount"),
-  udCount: $("udCount"),
+  detailsCount: $("detailsCount"),
+  prevStepBtn: $("prevStepBtn"),
+  nextStepBtn: $("nextStepBtn"),
   generateBtn: $("generateBtn"),
   sampleBtn: $("sampleBtn"),
   formError: $("formError"),
@@ -20,14 +26,22 @@ const els = {
   verdictMeta: $("verdictMeta"),
   keywordsLabel: $("keywordsLabel"),
   keywordChips: $("keywordChips"),
+  suggestionsPanel: $("suggestionsPanel"),
+  suggestionsList: $("suggestionsList"),
   resumePaper: $("resumePaper"),
+  editPreviewBtn: $("editPreviewBtn"),
   copyBtn: $("copyBtn"),
-  downloadBtn: $("downloadBtn"),
+  downloadMenuBtn: $("downloadMenuBtn"),
+  downloadMenu: $("downloadMenu"),
+  downloadPdfBtn: $("downloadPdfBtn"),
+  downloadDocxBtn: $("downloadDocxBtn"),
+  downloadMdBtn: $("downloadMdBtn"),
   printBtn: $("printBtn"),
 };
 
 const MAX_CHARS = 15000;
 let lastMarkdown = "";
+let isEditingPreview = false;
 
 /* --- character counters ------------------------------------------------ */
 function bindCounter(textarea, counter) {
@@ -40,7 +54,73 @@ function bindCounter(textarea, counter) {
   update();
 }
 bindCounter(els.jd, els.jdCount);
-bindCounter(els.ud, els.udCount);
+
+const detailFields = [
+  { label: "Personal Information", el: els.personalInfo },
+  { label: "Education", el: els.education },
+  { label: "Work Experience", el: els.workExperience },
+  { label: "Skills", el: els.skills },
+  { label: "Projects / Achievements", el: els.projects },
+];
+
+function buildUserDetails() {
+  return detailFields
+    .map(({ label, el }) => {
+      const value = el.value.trim();
+      return value ? `${label}:\n${value}` : "";
+    })
+    .filter(Boolean)
+    .join("\n\n");
+}
+
+function updateDetailsCount() {
+  const n = buildUserDetails().length;
+  els.detailsCount.textContent = `${n.toLocaleString()} / ${MAX_CHARS.toLocaleString()}`;
+  els.detailsCount.classList.toggle("over", n > MAX_CHARS);
+}
+
+detailFields.forEach(({ el }) => el.addEventListener("input", updateDetailsCount));
+updateDetailsCount();
+
+const steps = ["job", "personal", "education", "experience", "skills", "projects"];
+let currentStep = 0;
+
+function showStep(index) {
+  currentStep = Math.max(0, Math.min(index, steps.length - 1));
+  const activeStep = steps[currentStep];
+
+  document.querySelectorAll(".step-tab").forEach((tab) => {
+    tab.classList.toggle("is-active", tab.dataset.step === activeStep);
+  });
+
+  document.querySelectorAll(".step-panel").forEach((panel) => {
+    panel.classList.toggle("is-active", panel.dataset.panel === activeStep);
+  });
+
+  els.prevStepBtn.hidden = currentStep === 0;
+  els.nextStepBtn.hidden = currentStep === steps.length - 1;
+  els.generateBtn.hidden = currentStep !== steps.length - 1;
+
+  const nextLabel = {
+    job: "Next: Personal Info",
+    personal: "Next: Education",
+    education: "Next: Experience",
+    experience: "Next: Skills",
+    skills: "Next: Projects",
+  };
+
+  els.nextStepBtn.textContent = nextLabel[activeStep] || "Next";
+}
+
+document.querySelectorAll(".step-tab").forEach((tab) => {
+  tab.addEventListener("click", () => {
+    showStep(steps.indexOf(tab.dataset.step));
+  });
+});
+
+els.prevStepBtn.addEventListener("click", () => showStep(currentStep - 1));
+els.nextStepBtn.addEventListener("click", () => showStep(currentStep + 1));
+showStep(0);
 
 /* --- sample data -------------------------------------------------------- */
 els.sampleBtn.addEventListener("click", () => {
@@ -57,24 +137,31 @@ Requirements:
 - Good communication skills
 
 Nice to have: experience with cloud platforms, REST APIs, or LLM applications.`;
-  els.ud.value = `Name: Juan Dela Cruz
-Email: juan.delacruz@email.com | Phone: +63 912 345 6789
-GitHub: github.com/juandc | LinkedIn: linkedin.com/in/juandc
+els.personalInfo.value = `Name: Juan Dela Cruz
+Email: juan.delacruz@email.com
+Phone: +63 912 345 6789
+GitHub: github.com/juandc
+LinkedIn: linkedin.com/in/juandc`;
 
-Education: BS Computer Science major in Data Science, University of Mindanao, 2022-2026, GPA 3.7
+els.education.value = `BS Computer Science major in Data Science
+University of Mindanao, 2022-2026
+GPA: 3.7`;
 
-Experience:
-- Data Science Intern at TechStart Davao (Summer 2025): built customer churn prediction model with Python/scikit-learn, presented findings to management, model improved targeting by 15%
-- Freelance web scraping projects using Python
+els.workExperience.value = `Data Science Intern at TechStart Davao, Summer 2025
+- Built a customer churn prediction model with Python and scikit-learn
+- Presented findings to management
+- Improved customer targeting by 15%
 
-Projects:
-- AI Resume Builder: three-agent LLM pipeline (extractor/writer/judge) using Node.js, Express, and Groq API
-- Sales dashboard in Tableau for a local business capstone project
-- Sentiment analysis of product reviews using TensorFlow
+Freelance web scraping projects using Python`;
 
-Skills: Python, SQL, pandas, scikit-learn, TensorFlow, Tableau, Matplotlib, JavaScript, Git`;
-  els.jd.dispatchEvent(new Event("input"));
-  els.ud.dispatchEvent(new Event("input"));
+els.skills.value = `Python, SQL, pandas, scikit-learn, TensorFlow, Tableau, Matplotlib, JavaScript, Git`;
+
+els.projects.value = `AI Resume Builder: three-agent LLM pipeline using Node.js, Express, and Groq API
+Sales dashboard in Tableau for a local business capstone project
+Sentiment analysis of product reviews using TensorFlow`;
+els.jd.dispatchEvent(new Event("input"));
+updateDetailsCount();
+showStep(0);
 });
 
 /* --- run log ------------------------------------------------------------- */
@@ -143,7 +230,7 @@ function handleEvent(ev) {
 /* --- generate ----------------------------------------------------------------- */
 els.generateBtn.addEventListener("click", async () => {
   const jobDescription = els.jd.value.trim();
-  const userDetails = els.ud.value.trim();
+  const userDetails = buildUserDetails();
 
   if (!jobDescription || !userDetails) {
     return showError("Both fields are required — paste the job description and your details.");
@@ -213,10 +300,49 @@ function showResult(result) {
   for (const k of kw.matched) addChip(k, "matched");
   for (const k of kw.missing) addChip(k, "missing");
 
+  showSuggestions(result);
+
   els.resumePaper.innerHTML = renderMarkdown(lastMarkdown);
   els.result.hidden = false;
   els.result.scrollIntoView({ behavior: "smooth", block: "start" });
 }
+
+function showPreviewEditor() {
+  isEditingPreview = true;
+  els.resumePaper.innerHTML = "";
+
+  const editor = document.createElement("textarea");
+  editor.className = "resume-editor";
+  editor.id = "resumeEditor";
+  editor.value = lastMarkdown;
+
+  els.resumePaper.appendChild(editor);
+  els.editPreviewBtn.textContent = "✓";
+  els.editPreviewBtn.title = "Save resume preview";
+  els.editPreviewBtn.setAttribute("aria-label", "Save resume preview");
+  editor.focus();
+}
+
+function savePreviewEditor() {
+  const editor = $("resumeEditor");
+  if (!editor) return;
+
+  lastMarkdown = editor.value;
+  els.resumePaper.innerHTML = renderMarkdown(lastMarkdown);
+
+  isEditingPreview = false;
+  els.editPreviewBtn.textContent = "✎";
+  els.editPreviewBtn.title = "Edit resume";
+  els.editPreviewBtn.setAttribute("aria-label", "Edit resume preview");
+}
+
+els.editPreviewBtn.addEventListener("click", () => {
+  if (isEditingPreview) {
+    savePreviewEditor();
+  } else {
+    showPreviewEditor();
+  }
+});
 
 function addChip(text, cls) {
   const chip = document.createElement("span");
@@ -224,6 +350,60 @@ function addChip(text, cls) {
   chip.textContent = text;
   chip.title = cls === "matched" ? "Found in your resume" : "In the job post, missing from your resume";
   els.keywordChips.appendChild(chip);
+}
+
+function showSuggestions(result) {
+  const suggestions = [];
+  const markdown = lastMarkdown.toLowerCase();
+  const kw = result.keywords || { missing: [] };
+  const missing = kw.missing || [];
+
+  if (missing.length) {
+    suggestions.push(
+      `If true, add missing job keywords naturally: ${missing.join(", ")}.`
+    );
+  }
+
+  const weakSections = [];
+
+  if (!markdown.includes("education")) weakSections.push("education");
+  if (!markdown.includes("project")) weakSections.push("projects");
+  if (!markdown.includes("experience")) weakSections.push("work experience");
+  if (!markdown.includes("skill")) weakSections.push("skills");
+
+  if (weakSections.length) {
+    suggestions.push(
+      `Strengthen weak or missing sections: ${weakSections.join(", ")}.`
+    );
+  }
+
+  const bulletCount = (lastMarkdown.match(/^[-*]\s+/gm) || []).length;
+
+  if (bulletCount < 4) {
+    suggestions.push(
+      "Add more achievement bullets with numbers, tools used, and measurable results."
+    );
+  }
+
+  if ((result.score || 0) < 90) {
+    suggestions.push(
+      "Review the job post again and tailor the summary and work experience more closely to the role."
+    );
+  }
+
+  suggestions.push(
+    "Before applying, check spelling, verify all claims are true, and export as PDF unless the employer asks for Word."
+  );
+
+  els.suggestionsList.innerHTML = "";
+
+  suggestions.forEach((text) => {
+    const item = document.createElement("li");
+    item.textContent = text;
+    els.suggestionsList.appendChild(item);
+  });
+
+  els.suggestionsPanel.hidden = suggestions.length === 0;
 }
 
 /* --- minimal markdown renderer (headings, bold, italics, bullets) ------------------ */
@@ -261,19 +441,84 @@ function renderMarkdown(md) {
 }
 
 /* --- export actions --------------------------------------------------------------- */
-els.copyBtn.addEventListener("click", async () => {
-  await navigator.clipboard.writeText(lastMarkdown);
-  els.copyBtn.textContent = "Copied ✓";
-  setTimeout(() => (els.copyBtn.textContent = "Copy markdown"), 1500);
-});
-
-els.downloadBtn.addEventListener("click", () => {
+function downloadMarkdown() {
   const blob = new Blob([lastMarkdown], { type: "text/markdown" });
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
   a.download = "resume.md";
   a.click();
   URL.revokeObjectURL(a.href);
+}
+
+async function downloadGeneratedFile(format) {
+  const endpoint = format === "pdf" ? "/api/export/pdf" : "/api/export/docx";
+  const filename = format === "pdf" ? "resume.pdf" : "resume.docx";
+
+  const res = await fetch(endpoint, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ markdown: lastMarkdown }),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || `Could not download ${format.toUpperCase()} file.`);
+  }
+
+  const blob = await res.blob();
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+function closeDownloadMenu() {
+  els.downloadMenu.hidden = true;
+  els.downloadMenuBtn.setAttribute("aria-expanded", "false");
+}
+
+els.downloadMenuBtn.addEventListener("click", () => {
+  const willOpen = els.downloadMenu.hidden;
+  els.downloadMenu.hidden = !willOpen;
+  els.downloadMenuBtn.setAttribute("aria-expanded", String(willOpen));
+});
+
+els.downloadPdfBtn.addEventListener("click", async () => {
+  closeDownloadMenu();
+
+  try {
+    await downloadGeneratedFile("pdf");
+  } catch (err) {
+    showError(err.message);
+  }
+});
+
+els.downloadDocxBtn.addEventListener("click", async () => {
+  closeDownloadMenu();
+
+  try {
+    await downloadGeneratedFile("docx");
+  } catch (err) {
+    showError(err.message);
+  }
+});
+
+els.downloadMdBtn.addEventListener("click", () => {
+  closeDownloadMenu();
+  downloadMarkdown();
+});
+
+document.addEventListener("click", (event) => {
+  if (!event.target.closest(".download-menu")) {
+    closeDownloadMenu();
+  }
+});
+
+els.copyBtn.addEventListener("click", async () => {
+  await navigator.clipboard.writeText(lastMarkdown);
+  els.copyBtn.textContent = "Copied";
+  setTimeout(() => (els.copyBtn.textContent = "Copy Resume"), 1500);
 });
 
 els.printBtn.addEventListener("click", () => window.print());

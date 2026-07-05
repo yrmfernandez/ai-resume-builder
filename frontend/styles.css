@@ -87,15 +87,57 @@ main {
 .hero-copy strong { color: var(--ink); }
 
 /* --- workspace / inputs --------------------------------------------------- */
-.input-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
+.workspace {
+  margin-top: 8px;
 }
 
-.field { display: flex; flex-direction: column; gap: 6px; position: relative; }
+.step-tabs {
+  display: flex;
+  gap: 8px;
+  border-bottom: 1px solid var(--line);
+  overflow-x: auto;
+  padding-bottom: 10px;
+}
 
-.field label {
+.step-tab {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ink-soft);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  padding: 8px 12px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.step-tab.is-active {
+  color: var(--ink);
+  background: var(--highlight);
+  border-color: var(--ink);
+}
+
+.step-card {
+  margin-top: 18px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 28px 30px 24px;
+}
+
+.step-panel {
+  display: none;
+}
+
+.step-panel.is-active {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.step-panel label {
   font-family: var(--font-mono);
   font-size: 0.78rem;
   font-weight: 500;
@@ -103,16 +145,23 @@ main {
   letter-spacing: 0.06em;
 }
 
-textarea {
-  font-family: var(--font-body);
+.step-help {
+  color: var(--ink-soft);
   font-size: 0.95rem;
+  max-width: 64ch;
+}
+
+textarea {
+  width: 100%;
+  font-family: var(--font-body);
+  font-size: 0.98rem;
   padding: 14px;
   border: 1px solid var(--line);
   border-radius: 6px;
   background: var(--surface);
   color: var(--ink);
   resize: vertical;
-  min-height: 220px;
+  min-height: 260px;
 }
 
 textarea:focus-visible,
@@ -128,9 +177,23 @@ a:focus-visible {
   font-size: 0.72rem;
   color: var(--ink-soft);
 }
-.char-count.over { color: var(--fail); font-weight: 500; }
 
-.actions { display: flex; gap: 12px; margin-top: 18px; flex-wrap: wrap; }
+.char-count.over {
+  color: var(--fail);
+  font-weight: 500;
+}
+
+.actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 18px;
+  flex-wrap: wrap;
+}
+
+.step-actions {
+  align-items: center;
+  margin-top: 16px;
+}
 
 .btn-primary {
   font-family: var(--font-display);
@@ -145,9 +208,22 @@ a:focus-visible {
   box-shadow: 3px 3px 0 var(--ink);
   transition: transform 0.08s ease, box-shadow 0.08s ease;
 }
-.btn-primary:hover:not(:disabled) { transform: translate(-1px, -1px); box-shadow: 4px 4px 0 var(--ink); }
-.btn-primary:active:not(:disabled) { transform: translate(2px, 2px); box-shadow: 1px 1px 0 var(--ink); }
-.btn-primary:disabled { opacity: 0.55; cursor: wait; box-shadow: 3px 3px 0 var(--ink); }
+
+.btn-primary:hover:not(:disabled) {
+  transform: translate(-1px, -1px);
+  box-shadow: 4px 4px 0 var(--ink);
+}
+
+.btn-primary:active:not(:disabled) {
+  transform: translate(2px, 2px);
+  box-shadow: 1px 1px 0 var(--ink);
+}
+
+.btn-primary:disabled {
+  opacity: 0.55;
+  cursor: wait;
+  box-shadow: 3px 3px 0 var(--ink);
+}
 
 .btn-ghost {
   font-family: var(--font-mono);
@@ -159,13 +235,26 @@ a:focus-visible {
   padding: 10px 16px;
   cursor: pointer;
 }
-.btn-ghost:hover { border-color: var(--ink); }
+
+.btn-ghost:hover {
+  border-color: var(--ink);
+}
 
 .form-error {
   margin-top: 12px;
   font-family: var(--font-mono);
   font-size: 0.85rem;
   color: var(--fail);
+}
+
+.privacy-note {
+  margin-top: 12px;
+  max-width: 620px;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  line-height: 1.5;
+  color: var(--ink-soft);
+  opacity: 0.75;
 }
 
 /* --- pipeline tracker (signature) ----------------------------------------- */
@@ -243,7 +332,6 @@ a:focus-visible {
 
 .result-header {
   display: flex;
-  justify-content: space-between;
   align-items: center;
   gap: 16px;
   flex-wrap: wrap;
@@ -265,7 +353,63 @@ a:focus-visible {
 
 .verdict-meta { font-family: var(--font-mono); font-size: 0.8rem; color: var(--ink-soft); }
 
-.result-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.resume-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin: 22px 0 12px;
+}
+
+.resume-toolbar-label {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ink-soft);
+}
+
+.result-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.download-menu {
+  position: relative;
+}
+
+.download-options {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 5;
+  min-width: 220px;
+  padding: 6px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  box-shadow: 0 12px 28px rgba(22, 24, 29, 0.12);
+}
+
+.download-options button {
+  width: 100%;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ink);
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.download-options button:hover {
+  background: var(--highlight);
+}
 
 .keywords { margin-bottom: 20px; }
 
@@ -290,6 +434,83 @@ a:focus-visible {
 }
 .chip.matched { background: var(--highlight); border-color: var(--ink); }
 .chip.missing { color: var(--ink-soft); text-decoration: line-through; }
+
+.suggestions-panel {
+  margin: 18px 0 20px;
+  padding: 18px 20px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.suggestions-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: baseline;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+
+.suggestions-label {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ink);
+}
+
+.suggestions-note {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--ink-soft);
+}
+
+.suggestions-list {
+  margin-left: 18px;
+  color: var(--ink-soft);
+}
+
+.suggestions-list li {
+  margin: 6px 0;
+}
+
+.resume-preview-wrap {
+  position: relative;
+}
+
+.edit-preview-btn {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 2;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 1.1rem;
+  cursor: pointer;
+}
+
+.edit-preview-btn:hover {
+  border-color: var(--ink);
+  background: var(--highlight);
+}
+
+.resume-editor {
+  width: 100%;
+  min-height: 720px;
+  border: none;
+  outline: none;
+  resize: vertical;
+  font-family: var(--font-body);
+  font-size: 0.95rem;
+  line-height: 1.55;
+  color: var(--ink);
+  background: transparent;
+}
 
 /* the resume sheet itself — styled like paper */
 .resume-paper {
