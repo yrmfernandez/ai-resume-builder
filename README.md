@@ -75,11 +75,11 @@ The backend is set up to deploy as a single Vercel Function, with the frontend s
 3. **Add environment variables** in Project Settings → Environment Variables (do **not** commit a real `.env` file):
    - `GROQ_API_KEY` — your Groq key
    - `MOCK_MODE` — `false` for real AI calls, or `true` to demo without burning API calls
-4. Deploy. Vercel auto-detects the Express app (`server.js` exports the app; `backend/vercel.json` sets `maxDuration: 60` so a full 5-agent pipeline run has enough time to finish — see notes below).
+4. Deploy. Vercel auto-detects the Express app from `server.js` (it exports the app; see notes below on function timeout).
 
 **Things that matter for this project specifically, since it isn't a typical CRUD app:**
 
-- **Function timeout:** a full pipeline run (Extractor → Writer/Judge loop → Coach → Roles) makes several sequential Groq calls and can take a while, especially on retries. `backend/vercel.json` raises the timeout to 60 seconds (the max on Vercel's free Hobby tier without Fluid Compute extensions). If you still see `504 FUNCTION_INVOCATION_TIMEOUT` under real traffic, either enable Fluid Compute for a longer default duration or upgrade to Pro for a higher `maxDuration` ceiling.
+- **Function timeout:** a full pipeline run (Extractor → Writer/Judge loop → Coach → Roles) makes several sequential Groq calls and can take a while, especially on retries. If you see `504 FUNCTION_INVOCATION_TIMEOUT`, raise the limit in the dashboard under **Settings → Functions → Function Max Duration** (Hobby supports up to 60s; Fluid Compute and Pro allow more). We initially tried setting this via a `functions` block in `vercel.json`, but Vercel's zero-config Express detection expects that block to target files under an `api/` directory, not a top-level `server.js` — so the dashboard setting is the reliable path here.
 - **Upload size:** Vercel hard-caps request bodies at 4.5 MB for serverless functions. The resume-upload limit is set to 4 MB in `server.js` to stay safely under that — don't raise it back to the old 5 MB unless you move file uploads off Vercel Functions (e.g. direct-to-storage uploads).
 - **Cold starts:** the first request after inactivity will be slower (Node process + dependency init). This is normal for serverless and not something to "fix."
 - **Save/restore is per-browser:** since it uses `localStorage`, it works identically in production — nothing server-side to configure for that feature.
@@ -107,7 +107,6 @@ backend/
 │   ├── rolesPrompt.js
 │   ├── suggestPrompt.js
 │   └── parseResumePrompt.js
-├── vercel.json          # Vercel function config (timeout)
 ├── .env.example
 └── public/              # the web app — served as static assets on Vercel
     ├── index.html
