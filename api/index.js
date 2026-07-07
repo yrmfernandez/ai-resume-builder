@@ -32,7 +32,45 @@ dotenv.config();
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const app = express();
-app.use(cors());
+
+// CORS: only allow the site's own origin(s) to call the API. Without this,
+// cors() defaults to "*" and ANY website (or a classmate's script) can hit
+// /api/generate/stream and burn your Groq tokens. Set ALLOWED_ORIGINS to a
+// comma-separated list of your deployed URLs (e.g. your Vercel domain). If it's
+// unset we allow same-origin/no-origin requests (curl, server-to-server) plus
+// localhost for development, and reject cross-site browser requests.
+const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || "")
+  .split(",")
+  .map((o) => o.trim())
+  .filter(Boolean);
+
+const corsOptions = {
+  origin(origin, callback) {
+    // Requests with no Origin header (same-origin navigations, curl, health
+    // checks) are allowed — the browser only sends Origin on cross-site calls.
+    if (!origin) return callback(null, true);
+
+    // Always permit localhost during development.
+    const isLocalhost = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
+    if (isLocalhost) return callback(null, true);
+
+    // Otherwise the origin must be in the allow-list.
+    if (ALLOWED_ORIGINS.includes(origin)) return callback(null, true);
+
+    return callback(new Error("Not allowed by CORS"));
+  },
+};
+
+app.use(cors(corsOptions));
+
+// Turn CORS rejections into a clean 403 instead of a 500 with a stack trace.
+app.use((err, req, res, next) => {
+  if (err && err.message === "Not allowed by CORS") {
+    return res.status(403).json({ error: "This origin is not allowed to use the API." });
+  }
+  return next(err);
+});
+
 app.use(express.json({ limit: "1mb" }));
 
 // Serve the frontend. On Vercel this is a no-op in production (static
@@ -421,7 +459,7 @@ app.post("/api/export/docx", async (req, res) => {
 
 // Section suggestions: given the job description and which section the user is
 // filling out, return reminder-style suggestions of things they might have.
-app.post("/api/suggest", async (req, res) => {
+app.post("/api/suggest", rateLimitGeneration, async (req, res) => {
   const { jobDescription, section, existing } = req.body || {};
   const validSections = ["skills", "experience", "projects"];
 
@@ -497,7 +535,7 @@ async function extractResumeText(file) {
 }
 
 // Upload an existing resume -> extract text -> parse into structured fields.
-app.post("/api/parse-resume", (req, res, next) => {
+app.post("/api/parse-resume", rateLimitGeneration, (req, res, next) => {
   upload.single("resume")(req, res, (err) => {
     if (err) {
       if (err.code === "LIMIT_FILE_SIZE") {

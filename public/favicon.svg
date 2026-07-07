@@ -1,0 +1,7 @@
+<svg viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="HireLift">
+  <rect x="1.5" y="1.5" width="37" height="37" rx="10" fill="#4f46e5" />
+  <path d="M13 11 V29" stroke="#ffffff" stroke-width="3.2" stroke-linecap="round" fill="none" />
+  <path d="M27 11 V29" stroke="#ffffff" stroke-width="3.2" stroke-linecap="round" fill="none" />
+  <path d="M13 21 H27" stroke="#ffffff" stroke-width="3.2" stroke-linecap="round" fill="none" />
+  <path d="M20 25 V15 M16.5 18.5 L20 15 L23.5 18.5" stroke="#c7d2fe" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" fill="none" />
+</svg>
