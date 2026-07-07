@@ -25,7 +25,7 @@
 
   <main>
     <section class="hero">
-      <h1>Get past the filters. <span class="hero-sub">Closer to the interview.</span></h1>
+      <h1>Get past the ATS filters. <span class="hero-sub">Closer to the interview.</span></h1>
       <p class="hero-copy">Add the job post and your current resume. HireLift helps you spot what’s missing, sharpen what’s already there, and send a resume that matches the role more clearly.</p>
     </section>
 
@@ -152,40 +152,63 @@
     </section>
 
     <!-- Signature element: the live pipeline tracker -->
-    <section class="pipeline" id="pipeline" hidden aria-label="Agent pipeline progress" aria-live="polite">
-      <div class="pipeline-track">
-        <div class="agent" id="agent-extract">
-          <span class="agent-dot"></span>
-          <span class="agent-name">Extractor</span>
-          <span class="agent-model">gpt-oss-20b</span>
+    <section class="pipeline" id="pipeline" hidden aria-label="Resume build progress" aria-live="polite">
+      <div class="build-status">
+        <h2 id="buildTitle">Building your resume</h2>
+        <p id="buildSubtitle">Please keep this tab open while HireLift prepares your resume.</p>
+    
+        <div class="build-progress" aria-hidden="true">
+          <div class="build-progress-bar" id="buildProgressBar"></div>
         </div>
-        <span class="track-arrow">→</span>
-        <div class="agent" id="agent-write">
-          <span class="agent-dot"></span>
-          <span class="agent-name">Writer</span>
-          <span class="agent-model">gpt-oss-120b</span>
+    
+        <p class="build-progress-label" id="buildProgressLabel">Starting...</p>
+    
+        <div class="pipeline-track" style="display: none !important;">
+          <div class="agent" id="agent-extract">
+            <span class="agent-dot"></span>
+            <span class="agent-name">Extractor</span>
+            <span class="agent-model">gpt-oss-20b</span>
+          </div>
+    
+          <span class="track-arrow">→</span>
+    
+          <div class="agent" id="agent-write">
+            <span class="agent-dot"></span>
+            <span class="agent-name">Writer</span>
+            <span class="agent-model">gpt-oss-120b</span>
+          </div>
+    
+          <span class="track-arrow">→</span>
+    
+          <div class="agent" id="agent-judge">
+            <span class="agent-dot"></span>
+            <span class="agent-name">Judge</span>
+            <span class="agent-model">llama-3.3-70b</span>
+          </div>
+    
+          <span class="track-arrow">→</span>
+    
+          <div class="agent" id="agent-coach">
+            <span class="agent-dot"></span>
+            <span class="agent-name">Coach</span>
+            <span class="agent-model">gpt-oss-120b</span>
+          </div>
+    
+          <span class="track-arrow">→</span>
+    
+          <div class="agent" id="agent-roles">
+            <span class="agent-dot"></span>
+            <span class="agent-name">Roles</span>
+            <span class="agent-model">gpt-oss-120b</span>
+          </div>
+    
+          <span class="loop-badge" id="loopBadge" hidden>
+            rewrite loop ×<span id="loopCount">1</span>
+          </span>
         </div>
-        <span class="track-arrow">→</span>
-        <div class="agent" id="agent-judge">
-          <span class="agent-dot"></span>
-          <span class="agent-name">Judge</span>
-          <span class="agent-model">llama-3.3-70b</span>
-        </div>
-        <span class="track-arrow">→</span>
-        <div class="agent" id="agent-coach">
-          <span class="agent-dot"></span>
-          <span class="agent-name">Coach</span>
-          <span class="agent-model">gpt-oss-120b</span>
-        </div>
-        <span class="track-arrow">→</span>
-        <div class="agent" id="agent-roles">
-          <span class="agent-dot"></span>
-          <span class="agent-name">Roles</span>
-          <span class="agent-model">gpt-oss-120b</span>
-        </div>
-        <span class="loop-badge" id="loopBadge" hidden>rewrite loop ×<span id="loopCount">1</span></span>
+    
+        <pre class="run-log" id="runLog" aria-label="Run log" style="display: none !important;"></pre>
       </div>
-      <pre class="run-log" id="runLog" aria-label="Run log"></pre>
     </section>
 
     <section class="result" id="result" hidden aria-label="Generated resume">

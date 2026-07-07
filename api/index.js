@@ -47,6 +47,133 @@ const PORT = process.env.PORT || 3000;
 
 const MAX_INPUT_CHARS = 15000;
 
+const MAX_ACTIVE_GENERATIONS = Number(process.env.MAX_ACTIVE_GENERATIONS || 1);
+const MAX_QUEUE_LENGTH = Number(process.env.MAX_QUEUE_LENGTH || 25);
+const GENERATION_TIMEOUT_MS = Number(process.env.GENERATION_TIMEOUT_MS || 90_000);
+const RATE_LIMIT_WINDOW_MS = Number(process.env.RATE_LIMIT_WINDOW_MS || 60_000);
+const RATE_LIMIT_MAX_REQUESTS = Number(process.env.RATE_LIMIT_MAX_REQUESTS || 5);
+
+let activeGenerations = 0;
+const generationQueue = [];
+const generationRateLimit = new Map();
+
+function makeHttpError(message, status = 500) {
+  const error = new Error(message);
+  error.status = status;
+  return error;
+}
+
+function getClientKey(req) {
+  const forwardedFor = req.headers["x-forwarded-for"];
+
+  if (typeof forwardedFor === "string" && forwardedFor.trim()) {
+    return forwardedFor.split(",")[0].trim();
+  }
+
+  return req.ip || "unknown";
+}
+
+function rateLimitGeneration(req, res, next) {
+  const key = getClientKey(req);
+  const now = Date.now();
+  const current = generationRateLimit.get(key);
+
+  if (!current || now > current.resetAt) {
+    generationRateLimit.set(key, {
+      count: 1,
+      resetAt: now + RATE_LIMIT_WINDOW_MS,
+    });
+
+    return next();
+  }
+
+  if (current.count >= RATE_LIMIT_MAX_REQUESTS) {
+    const retryAfter = Math.ceil((current.resetAt - now) / 1000);
+
+    res.setHeader("Retry-After", String(retryAfter));
+
+    return res.status(429).json({
+      error: "Too many resume requests. Please wait a moment before trying again.",
+      retryAfter,
+    });
+  }
+
+  current.count += 1;
+  generationRateLimit.set(key, current);
+
+  return next();
+}
+
+function notifyQueuePositions() {
+  generationQueue.forEach((ticket, index) => {
+    ticket.onQueueUpdate({
+      status: "queued",
+      position: index + 1,
+      waiting: generationQueue.length,
+    });
+  });
+}
+
+function runWithTimeout(task, timeoutMs) {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      reject(makeHttpError("Resume generation timed out. Please try again.", 504));
+    }, timeoutMs);
+
+    Promise.resolve()
+      .then(task)
+      .then(resolve)
+      .catch(reject)
+      .finally(() => clearTimeout(timer));
+  });
+}
+
+function runWithGenerationQueue(task, onQueueUpdate = () => {}) {
+  return new Promise((resolve, reject) => {
+    if (generationQueue.length >= MAX_QUEUE_LENGTH) {
+      reject(
+        makeHttpError(
+          "The resume builder is busy right now. Please try again in a minute.",
+          503
+        )
+      );
+      return;
+    }
+
+    const ticket = { task, resolve, reject, onQueueUpdate };
+    generationQueue.push(ticket);
+
+    notifyQueuePositions();
+    drainGenerationQueue();
+  });
+}
+
+function drainGenerationQueue() {
+  if (activeGenerations >= MAX_ACTIVE_GENERATIONS) return;
+
+  const ticket = generationQueue.shift();
+  if (!ticket) return;
+
+  activeGenerations += 1;
+
+  ticket.onQueueUpdate({
+    status: "started",
+    position: 0,
+    waiting: generationQueue.length,
+  });
+
+  notifyQueuePositions();
+
+  runWithTimeout(ticket.task, GENERATION_TIMEOUT_MS)
+    .then(ticket.resolve)
+    .catch(ticket.reject)
+    .finally(() => {
+      activeGenerations -= 1;
+      notifyQueuePositions();
+      drainGenerationQueue();
+    });
+}
+
 function validateBody(body) {
   const { jobDescription, userDetails } = body || {};
   if (!jobDescription || !userDetails) {
@@ -180,22 +307,26 @@ app.get("/health", (req, res) => {
 });
 
 // Simple JSON endpoint: run the pipeline, return the final result.
-app.post("/api/generate", async (req, res) => {
+app.post("/api/generate", rateLimitGeneration, async (req, res) => {
   const error = validateBody(req.body);
   if (error) return res.status(400).json({ error });
 
   try {
-    const result = await generateResume(req.body.jobDescription, req.body.userDetails);
+    const result = await runWithGenerationQueue(() =>
+      generateResume(req.body.jobDescription, req.body.userDetails)
+);
     res.json(result);
   } catch (err) {
     console.error("[/api/generate] pipeline error:", err);
-    res.status(500).json({ error: "Resume generation failed.", detail: err.message });
+    res.status(err.status || 500).json({
+      error: err.message || "Resume generation failed.",
+    });
   }
 });
 
 // Streaming endpoint: emits NDJSON progress events as each agent works,
 // finishing with a {"stage":"done", result} line. Powers the live pipeline UI.
-app.post("/api/generate/stream", async (req, res) => {
+app.post("/api/generate/stream", rateLimitGeneration, async (req, res) => {
   const error = validateBody(req.body);
   if (error) return res.status(400).json({ error });
 
@@ -205,15 +336,22 @@ app.post("/api/generate/stream", async (req, res) => {
   const send = (obj) => res.write(JSON.stringify(obj) + "\n");
 
   try {
-    const result = await generateResume(
-      req.body.jobDescription,
-      req.body.userDetails,
-      (event) => send(event)
+    const result = await runWithGenerationQueue(
+      () =>
+        generateResume(
+          req.body.jobDescription,
+          req.body.userDetails,
+          (event) => send(event)
+        ),
+      (queue) => send({ stage: "queue", ...queue })
     );
     send({ stage: "done", result });
   } catch (err) {
     console.error("[/api/generate/stream] pipeline error:", err);
-    send({ stage: "error", error: "Resume generation failed.", detail: err.message });
+    send({
+      stage: "error",
+      error: err.message || "Resume generation failed.",
+    });
   } finally {
     res.end();
   }

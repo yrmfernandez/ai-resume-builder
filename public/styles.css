@@ -445,6 +445,31 @@ input[type="tel"] {
 /* --- pipeline tracker (signature) ----------------------------------------- */
 .pipeline { margin-top: 48px; }
 
+.build-status {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 22px 24px;
+  margin-bottom: 16px;
+}
+
+.build-status h2 {
+  font-family: var(--font-display);
+  font-size: 1.35rem;
+  font-weight: 900;
+  margin-bottom: 4px;
+}
+
+.build-status p {
+  color: var(--ink-soft);
+  font-size: 0.95rem;
+}
+
+.pipeline-track,
+.run-log {
+  display: none;
+}
+
 .pipeline-track {
   display: flex;
   align-items: center;
@@ -701,7 +726,11 @@ input[type="tel"] {
 
 /* --- before you apply ---------------------------------------------------- */
 .coaching {
-  margin-top: 44px;
+  margin-top: 48px;
+  padding: 24px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
 }
 
 .coaching-head {
@@ -709,21 +738,21 @@ input[type="tel"] {
   grid-template-columns: 1fr auto;
   gap: 8px 16px;
   align-items: start;
-  padding-bottom: 16px;
+  padding-bottom: 18px;
   border-bottom: 1px solid var(--line);
 }
 
 .coaching-head h2 {
   font-family: var(--font-display);
+  font-size: 1.65rem;
   font-weight: 900;
-  font-size: 1.45rem;
   letter-spacing: -0.02em;
 }
 
 .coaching-head p {
+  max-width: 62ch;
   color: var(--ink-soft);
   font-size: 0.95rem;
-  max-width: 62ch;
 }
 
 .coaching-head .btn-ghost {
@@ -733,14 +762,16 @@ input[type="tel"] {
 
 .coaching-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 0 28px;
-  padding: 18px 0 0;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  padding-top: 18px;
 }
 
 .prep-block {
-  padding: 18px 0;
-  border-bottom: 1px solid var(--line);
+  padding: 18px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 8px;
 }
 
 .prep-block.span-2 {
@@ -748,21 +779,24 @@ input[type="tel"] {
 }
 
 .prep-block h3 {
-  font-family: var(--font-mono);
-  font-size: 0.78rem;
-  font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
   margin-bottom: 12px;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--ink-soft);
 }
 
 .prep-block ul {
-  margin-left: 18px;
+  margin: 0;
+  padding-left: 18px;
   color: var(--ink-soft);
 }
 
 .prep-block li {
-  margin: 7px 0;
+  margin: 8px 0;
+  line-height: 1.45;
 }
 
 .prep-focus-list {
@@ -771,8 +805,11 @@ input[type="tel"] {
 }
 
 .prep-focus-item {
-  padding-left: 12px;
-  border-left: 3px solid var(--line);
+  padding: 12px 14px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--line);
+  border-radius: 6px;
 }
 
 .prep-focus-item.high {
@@ -789,8 +826,8 @@ input[type="tel"] {
 
 .prep-focus-top {
   display: flex;
-  gap: 8px;
   align-items: center;
+  gap: 8px;
   flex-wrap: wrap;
 }
 
@@ -799,19 +836,18 @@ input[type="tel"] {
 }
 
 .prep-focus-item p {
+  margin-top: 3px;
   color: var(--ink-soft);
   font-size: 0.9rem;
-  margin-top: 2px;
 }
 
 .priority-tag {
   font-family: var(--font-mono);
-  font-size: 0.66rem;
+  font-size: 0.64rem;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
   padding: 1px 7px;
-  border-radius: 999px;
   border: 1px solid var(--line);
+  border-radius: 999px;
   color: var(--ink-soft);
 }
 
@@ -821,9 +857,9 @@ input[type="tel"] {
 }
 
 .priority-tag.medium {
-  border-color: var(--highlight);
-  color: var(--ink);
   background: var(--highlight);
+  border-color: var(--highlight);
+  color: #16181d;
 }
 
 .priority-tag.low {
@@ -832,23 +868,22 @@ input[type="tel"] {
 }
 
 .qa-item {
-  margin: 14px 0;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.qa-item:last-child {
+  border-bottom: 0;
 }
 
 .qa-q {
   font-weight: 700;
-  font-size: 0.95rem;
-}
-
-.qa-q::before {
-  content: "Q: ";
-  color: var(--ink-soft);
 }
 
 .qa-a {
+  margin-top: 4px;
   color: var(--ink-soft);
   font-size: 0.9rem;
-  margin-top: 3px;
 }
 
 /* --- smart suggestions ---------------------------------------------------- */
@@ -1049,4 +1084,59 @@ input[type="tel"] {
     box-shadow: none;
     padding: 0;
   }
+
+/* Clean user-facing build progress */
+.build-status {
+  max-width: 720px;
+  margin: 0 auto 20px;
+  padding: 24px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--highlight);
+  border-radius: 8px;
+}
+
+.build-status h2 {
+  font-family: var(--font-display);
+  font-size: 1.35rem;
+  font-weight: 900;
+  margin-bottom: 6px;
+}
+
+.build-status p {
+  color: var(--ink-soft);
+  font-size: 0.95rem;
+}
+
+.build-progress {
+  width: 100%;
+  height: 10px;
+  margin-top: 18px;
+  overflow: hidden;
+  background: var(--line);
+  border-radius: 999px;
+}
+
+.build-progress-bar {
+  width: 8%;
+  height: 100%;
+  background: var(--highlight);
+  border-radius: inherit;
+  transition: width 0.35s ease;
+}
+
+.build-progress-label {
+  margin-top: 10px;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+}
+
+/* Hide internal agent/debug details from normal users */
+.pipeline .pipeline-track,
+.pipeline .run-log,
+.build-status-footer,
+.build-details-toggle {
+  display: none !important;
+}
+
 }

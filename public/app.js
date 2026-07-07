@@ -59,6 +59,11 @@ const els = {
   coaching: $("coaching"),
   coachingGrid: $("coachingGrid"),
   copyPlanBtn: $("copyPlanBtn"),
+  // generating resume
+  buildTitle: $("buildTitle"),
+  buildSubtitle: $("buildSubtitle"),
+  buildProgressBar: $("buildProgressBar"),
+  buildProgressLabel: $("buildProgressLabel"),
 };
 
 let lastPlan = null;
@@ -191,6 +196,7 @@ document.querySelectorAll(".step-tab").forEach((tab) => {
 els.prevStepBtn.addEventListener("click", () => showStep(currentStep - 1));
 els.nextStepBtn.addEventListener("click", () => showStep(currentStep + 1));
 showStep(0);
+
 
 /* --- save / restore (localStorage, browser-only) ----------------------- */
 const SAVE_KEY = "hirelift:draft";
@@ -486,6 +492,9 @@ function resetPipelineUI() {
   els.loopBadge.hidden = true;
   ["extract", "write", "judge", "coach", "roles"].forEach((s) => setAgent(s, null));
   els.pipeline.hidden = false;
+  setBuildProgress(8, "Starting...");
+  els.buildTitle.textContent = "Building your resume";
+  els.buildSubtitle.textContent = "Please keep this tab open while HireLift prepares your resume.";
   els.result.hidden = true;
   els.coaching.hidden = true;
   els.roles.hidden = true;
@@ -493,7 +502,62 @@ function resetPipelineUI() {
 }
 
 /* --- progress event handling ----------------------------------------------- */
+function setBuildProgress(percent, label) {
+  if (els.buildProgressBar) {
+    els.buildProgressBar.style.width = `${percent}%`;
+  }
+
+  if (els.buildProgressLabel) {
+    els.buildProgressLabel.textContent = label;
+  }
+}
+
 function handleEvent(ev) {
+
+  if (ev.stage === "queue") {
+    if (ev.status === "queued") {
+      els.buildTitle.textContent = "Waiting for your turn";
+      els.buildSubtitle.textContent = `You are #${ev.position} in line. We'll start building your resume soon.`;
+      setBuildProgress(8, "Queued...");
+    }
+  
+    if (ev.status === "started") {
+      els.buildTitle.textContent = "Building your resume";
+      els.buildSubtitle.textContent = "This usually takes a moment. Please keep this tab open.";
+      setBuildProgress(14, "Starting your resume...");
+    }
+  
+    return;
+  }
+  
+  const progressMap = {
+    extract: ev.status === "running"
+      ? [22, "Reading your job post and details..."]
+      : [36, "Finding the important details..."],
+  
+    write: ev.status === "running"
+      ? [50, "Drafting your resume..."]
+      : [64, "Checking the draft..."],
+  
+    judge: ev.status === "running"
+      ? [76, "Reviewing resume quality..."]
+      : ev.approved
+        ? [88, "Almost done..."]
+        : [78, "Improving the resume..."],
+  
+    coach: ev.status === "running"
+      ? [92, "Preparing final suggestions..."]
+      : [96, "Finalizing..."],
+  
+    roles: ev.status === "running"
+      ? [97, "Matching role ideas..."]
+      : [98, "Finishing up..."],
+  };
+  
+  if (progressMap[ev.stage]) {
+    setBuildProgress(progressMap[ev.stage][0], progressMap[ev.stage][1]);
+  }
+
   if (ev.stage === "extract") {
     if (ev.status === "running") { setAgent("extract", "running"); log("extractor: reading job description + your details…"); }
     else { setAgent("extract", "done"); log(`extractor: done — ${ev.detail || "extracted structured data"}`, "t-pass"); }
@@ -532,7 +596,10 @@ function handleEvent(ev) {
     else { setAgent("roles", "done"); log("roles: recommendations ready", "t-pass"); }
   }
 
-  if (ev.stage === "done") showResult(ev.result);
+  if (ev.stage === "done") {
+    setBuildProgress(100, "Done.");
+    showResult(ev.result);
+  }
 
   if (ev.stage === "error") {
     log(`error: ${escapeHtml(ev.detail || ev.error)}`, "t-fail");
@@ -601,6 +668,7 @@ function showError(msg) {
 /* --- result rendering ------------------------------------------------------------ */
 function showResult(result) {
   lastMarkdown = result.resume || "";
+  els.pipeline.hidden = true;
 
   els.verdictBadge.className = "verdict-badge " + (result.approved ? "pass" : "fail");
   els.verdictBadge.textContent = result.approved ? "Judge approved" : "Best effort";
