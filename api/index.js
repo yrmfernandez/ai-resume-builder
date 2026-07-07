@@ -8,11 +8,7 @@ import { suggest } from "../lib/agents/suggester.js";
 import { parseResume } from "../lib/agents/resumeParser.js";
 import multer from "multer";
 import mammoth from "mammoth";
-import { createRequire } from "module";
 import PDFDocument from "pdfkit";
-
-// pdf-parse is CommonJS; load it via createRequire so it works under ESM.
-const require = createRequire(import.meta.url);
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -422,7 +418,7 @@ app.post("/api/suggest", async (req, res) => {
 });
 
 // Extract text from an uploaded resume file (PDF, DOCX, or TXT).
-// Collapse the whitespace mess that pdf-parse and docx extraction often
+// Collapse the whitespace mess that PDF and DOCX text extraction often
 // produce (runs of blank lines, trailing spaces, non-breaking spaces),
 // while preserving real line breaks that separate sections and bullets.
 function normalizeResumeText(raw) {
@@ -441,9 +437,17 @@ async function extractResumeText(file) {
 
   let text;
   if (mimetype === "application/pdf" || name.endsWith(".pdf")) {
-    const pdfParse = require("pdf-parse");
-    const data = await pdfParse(buffer);
-    text = data.text;
+    // unpdf bundles a modern pdf.js and is ESM/serverless-friendly. The old
+    // pdf-parse@1.1.1 shipped pdf.js v1.10.100, which throws "bad XRef entry"
+    // on PDFs that use compressed cross-reference streams — i.e. almost every
+    // file produced by current exporters (Word, Google Docs, LaTeX, Canva).
+    // That crash took down the whole serverless function, so uploads silently
+    // failed in production. Keeping per-page text joined by newlines preserves
+    // the section/bullet breaks that normalizeResumeText relies on.
+    const { extractText, getDocumentProxy } = await import("unpdf");
+    const pdf = await getDocumentProxy(new Uint8Array(buffer));
+    const { text: pages } = await extractText(pdf, { mergePages: false });
+    text = Array.isArray(pages) ? pages.join("\n") : pages;
   } else if (
     mimetype === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
     name.endsWith(".docx")
