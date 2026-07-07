@@ -33,42 +33,62 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const app = express();
 
-// CORS: only allow the site's own origin(s) to call the API. Without this,
-// cors() defaults to "*" and ANY website (or a classmate's script) can hit
-// /api/generate/stream and burn your Groq tokens. Set ALLOWED_ORIGINS to a
-// comma-separated list of your deployed URLs (e.g. your Vercel domain). If it's
-// unset we allow same-origin/no-origin requests (curl, server-to-server) plus
-// localhost for development, and reject cross-site browser requests.
+// Vercel/other proxies sit in front of us; trust the proxy so req.headers.host
+// and x-forwarded-* reflect the real client-facing values.
+app.set("trust proxy", true);
+
+// CORS: block OTHER websites (or a classmate's script) from calling the API in
+// a browser, while always allowing the app's own frontend. The key insight is
+// that a site calling *itself* is same-origin and must always be permitted —
+// CORS only exists to control CROSS-origin access. We allow a request when:
+//   1. it has no Origin header (curl, server-to-server, same-origin navigations)
+//   2. its Origin matches the request's own Host (the site calling itself)
+//   3. it's localhost (development)
+//   4. its Origin is in the optional ALLOWED_ORIGINS list (extra domains)
+// Only a genuine cross-site browser request from an unlisted domain is rejected.
 const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || "")
   .split(",")
   .map((o) => o.trim())
   .filter(Boolean);
 
-const corsOptions = {
-  origin(origin, callback) {
-    // Requests with no Origin header (same-origin navigations, curl, health
-    // checks) are allowed — the browser only sends Origin on cross-site calls.
-    if (!origin) return callback(null, true);
+function isAllowedOrigin(origin, req) {
+  if (!origin) return true; // no Origin header → not a cross-site browser call
 
-    // Always permit localhost during development.
-    const isLocalhost = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
-    if (isLocalhost) return callback(null, true);
+  // Same-origin: the Origin's host matches the host we were reached on. This is
+  // what makes the app's own frontend work on any domain without configuration.
+  try {
+    const originHost = new URL(origin).host;
+    const requestHost = req.headers["x-forwarded-host"] || req.headers.host;
+    if (requestHost && originHost === requestHost) return true;
+  } catch {
+    /* malformed Origin — fall through to the checks below */
+  }
 
-    // Otherwise the origin must be in the allow-list.
-    if (ALLOWED_ORIGINS.includes(origin)) return callback(null, true);
+  if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) return true;
+  if (ALLOWED_ORIGINS.includes(origin)) return true;
 
-    return callback(new Error("Not allowed by CORS"));
-  },
+  return false;
+}
+
+const corsOptionsDelegate = (req, callback) => {
+  const origin = req.headers.origin;
+  const allowed = isAllowedOrigin(origin, req);
+  callback(null, { origin: allowed ? origin || true : false });
 };
 
-app.use(cors(corsOptions));
+app.use(cors(corsOptionsDelegate));
 
-// Turn CORS rejections into a clean 403 instead of a 500 with a stack trace.
-app.use((err, req, res, next) => {
-  if (err && err.message === "Not allowed by CORS") {
+// Reject disallowed cross-site requests outright (not just by withholding CORS
+// headers). A request carrying an Origin that isn't same-origin/allow-listed is
+// a foreign site's browser call — respond 403 so it never reaches the routes.
+// Requests with no Origin (curl, server-to-server) pass through untouched;
+// those are covered by the per-IP rate limiter instead.
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  if (origin && !isAllowedOrigin(origin, req)) {
     return res.status(403).json({ error: "This origin is not allowed to use the API." });
   }
-  return next(err);
+  return next();
 });
 
 app.use(express.json({ limit: "1mb" }));
